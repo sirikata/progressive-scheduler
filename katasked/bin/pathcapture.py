@@ -74,7 +74,7 @@ class MotionCapture(ShowBase.ShowBase):
     
     def finishCapture(self):
         self.taskMgr.remove(self.capTask)
-        self.elapsed_time = globalClock.getFrameTime()
+        self.elapsed_time = p3d.ClockObject.getGlobalClock().getFrameTime()
         print 'Captured', len(self.positions), 'camera positions over', self.elapsed_time
         
         json_out = {'positions': self.positions,
