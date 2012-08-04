@@ -1,6 +1,7 @@
 import panda3d.core as p3d
 import panda3d.egg as egg
 import direct.directutil.Mopath as Mopath
+import direct.showbase.PythonUtil as directutil
 
 class CreateNurbsCurve(object):
     def __init__(self):
@@ -17,6 +18,12 @@ class CreateNurbsCurve(object):
     def addPoint(self, pos, hpr=None):
         if hpr:
             eggVtx = egg.EggVertex()
+            
+            if len(self.myrotverts) > 0:
+                prev = self.myrotverts[-1].getPos3()
+                hpr = [directutil.fitDestAngle2Src(old, new)
+                       for old,new in zip(prev, hpr)]
+            
             eggVtx.setPos(p3d.Point3D(hpr[0], hpr[1], hpr[2]))
             self.myrotverts.append(eggVtx)
             self.vtxPool.addVertex(eggVtx)
