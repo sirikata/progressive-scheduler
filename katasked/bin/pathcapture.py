@@ -14,7 +14,7 @@ import katasked.panda
 
 class MotionCapture(ShowBase.ShowBase):
     
-    def __init__(self, outfile, scenefile):
+    def __init__(self, outfile, scenefile, starting, starting_hpr):
         
         self.outfile = outfile
         self.scenefile = scenefile
@@ -58,6 +58,9 @@ class MotionCapture(ShowBase.ShowBase):
         controls.KeyboardMovement()
         controls.MouseCamera()
         
+        self.cam.setPos(starting)
+        self.cam.setHpr(starting_hpr)
+        
         self.positions = []
         self.rotations = []
         
@@ -87,16 +90,36 @@ class MotionCapture(ShowBase.ShowBase):
         sys.exit(0)
         
 
+def parse_point3(s):
+    vals = s.split(',')
+    try:
+        vals = [float(v) for v in vals]
+        if len(vals) != 3:
+            raise ValueError()
+        return p3d.Point3(*vals)
+    except ValueError:
+        raise argparse.ArgumentTypeError("invalid format for point3")
+
+def parse_hpr(s):
+    p3 = parse_point3(s)
+    if not all(-180.0 <= p <= 180.0 for p in p3):
+        raise argparse.ArgumentTypeError("invalid angle range for rotation")
+    return p3
+
 def main():
     parser = argparse.ArgumentParser(description='Captures a motion path for a scene into a file')
     parser.add_argument('--out', '-o', metavar='motioncap.json', type=argparse.FileType('w'), required=True,
                         help='file to save motion path to')
     parser.add_argument('--scene', '--in', '-i', metavar='scene.json', type=argparse.FileType('r'), required=True,
                         help='scene file to render during capture (only terrain is displayed)')
+    parser.add_argument('--position', '-p', metavar='x,y,z', type=parse_point3, required=False, default=p3d.Point3(0,0,0),
+                        help='starting location (default: 0,0,0)')
+    parser.add_argument('--rotation', '-r', metavar='h,p,r', type=parse_hpr, required=False, default=p3d.Point3(0,0,0),
+                        help='starting camera rotation (default: 0,0,0)')
     
     args = parser.parse_args()
     
-    app = MotionCapture(args.out, args.scene)
+    app = MotionCapture(args.out, args.scene, starting=args.position, starting_hpr=args.rotation)
     app.run()
 
 if __name__ == '__main__':
