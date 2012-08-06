@@ -92,6 +92,8 @@ class SceneModel(object):
                                         s.metadata['version'] + '/' + 
                                         s.metadata['basename'])
     
+    slug = property(lambda s: s.path.replace("/", "_"))
+    
     def to_json(self):
         z = self.z + height_offset(self.boundsInfo) * self.scale
         
@@ -137,6 +139,9 @@ class Scene(object):
     
     def __iter__(self):
         return iter(self.models)
+    
+    def __len__(self):
+        return len(self.models)
     
     @staticmethod
     def fromfile(f):
