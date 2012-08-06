@@ -14,7 +14,7 @@ import katasked.panda
 
 class MotionCapture(ShowBase.ShowBase):
     
-    def __init__(self, outfile, scenefile, starting, starting_hpr):
+    def __init__(self, outfile, scenefile):
         
         self.outfile = outfile
         self.scenefile = scenefile
@@ -32,7 +32,7 @@ class MotionCapture(ShowBase.ShowBase):
         print
         print '==========='
         print 'Use w-s-a-d keys to move, arrow keys or right-click-drag to move camera.'
-        print 'Press enter when finished with motion capture.'
+        print 'Press enter when ready to start capturing.'
         print '==========='
         print
         
@@ -58,22 +58,22 @@ class MotionCapture(ShowBase.ShowBase):
         controls.KeyboardMovement()
         controls.MouseCamera()
         
-        self.cam.setPos(starting)
-        self.cam.setHpr(starting_hpr)
-        
         self.positions = []
         self.rotations = []
         
-        self.capTask = self.taskMgr.doMethodLater(0.2, self.capturePoints, 'capturePoints')
-        self.acceptOnce('enter', self.finishCapture)
+        self.acceptOnce('enter', self.startCapture)
 
     def capturePoints(self, task):
         pos = self.cam.getPos()
         hpr = self.cam.getHpr()
         self.positions.append(tuple(pos))
         self.rotations.append(tuple(hpr))
-        #curve.addPoint(base.cam.getPos(), base.cam.getHpr())
         return task.again
+    
+    def startCapture(self):
+        print 'Starting motion capture. Press enter when ready to stop.'
+        self.capTask = self.taskMgr.doMethodLater(0.2, self.capturePoints, 'capturePoints')
+        self.acceptOnce('enter', self.finishCapture)
     
     def finishCapture(self):
         self.taskMgr.remove(self.capTask)
@@ -112,14 +112,10 @@ def main():
                         help='file to save motion path to')
     parser.add_argument('--scene', '--in', '-i', metavar='scene.json', type=argparse.FileType('r'), required=True,
                         help='scene file to render during capture (only terrain is displayed)')
-    parser.add_argument('--position', '-p', metavar='x,y,z', type=parse_point3, required=False, default=p3d.Point3(0,0,0),
-                        help='starting location (default: 0,0,0)')
-    parser.add_argument('--rotation', '-r', metavar='h,p,r', type=parse_hpr, required=False, default=p3d.Point3(0,0,0),
-                        help='starting camera rotation (default: 0,0,0)')
     
     args = parser.parse_args()
     
-    app = MotionCapture(args.out, args.scene, starting=args.position, starting_hpr=args.rotation)
+    app = MotionCapture(args.out, args.scene)
     app.run()
 
 if __name__ == '__main__':
