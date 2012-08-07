@@ -1,7 +1,6 @@
 import numpy
 import json
 
-import cache
 import open3dhub
 
 def sirikata_bounds(boundsInfo):
@@ -60,7 +59,7 @@ class SceneModel(object):
         
     def _load_mesh(self):
         if self._mesh is None:
-            self._metadata, self._mesh = open3dhub.path_to_mesh(self.path, cache=True)
+            self._mesh = open3dhub.path_to_mesh(self.path)
         
     def _get_mesh(self):
         self._load_mesh()
@@ -70,14 +69,14 @@ class SceneModel(object):
     
     def _get_metadata(self):
         if self._metadata is None:
-            self._metadata = cache.get_metadata(self.path)
+            self._metadata = open3dhub.get_metadata(self.path)
         return self._metadata
 
     metadata = property(_get_metadata)
     
     def _get_bounds_info(self):
         if self._boundsInfo is None:
-            self._boundsInfo = cache.get_bounds(self.path)
+            self._boundsInfo = open3dhub.get_bounds(self.path)
         return self._boundsInfo
     
     boundsInfo = property(_get_bounds_info)
@@ -92,7 +91,7 @@ class SceneModel(object):
                                         s.metadata['version'] + '/' + 
                                         s.metadata['basename'])
     
-    slug = property(lambda s: s.path.replace("/", "_"))
+    slug = property(lambda s: s.path.replace("/", "~"))
     
     def to_json(self):
         z = self.z + height_offset(self.boundsInfo) * self.scale
@@ -117,6 +116,10 @@ class SceneModel(object):
                     (self.path, self.x, self.y, self.z, self.scale)
     def __repr__(self):
         return str(self)
+
+    @staticmethod
+    def unslug(slug):
+        return slug.replace('~', '/')
 
     @staticmethod
     def from_json(j):

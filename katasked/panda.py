@@ -5,6 +5,15 @@ import meshtool.filters.print_filters.print_bounds as print_bounds
 import panda3d.core as p3d
 import meshtool.filters.panda_filters.pandacore as pcore
 
+class PandaState(object):
+    def __init__(self, camera, unique_nodepaths, nodepaths):
+        self.camera = camera
+        """Panda3D camera"""
+        self.unique_nodepaths = unique_nodepaths
+        """A dict mapping SceneModel.slug to its unique NodePath in scene"""
+        self.nodepaths = nodepaths
+        """A dict mapping SceneModel to its NodePath instances in scene"""
+
 def centerAndScale(nodePath, boundsInfo):
 
     parentNP = nodePath.getParent()

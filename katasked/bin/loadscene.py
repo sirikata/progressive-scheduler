@@ -2,6 +2,9 @@
 
 import sys
 import json
+import math
+import time
+import heapq
 
 import argparse
 import panda3d.core as p3d
@@ -12,6 +15,11 @@ import meshtool.filters.panda_filters.pandacore as pcore
 import pathmangle
 import katasked.scene as scene
 import katasked.motioncap as motioncap
+import katasked.panda
+import katasked.task.pool as pool
+import katasked.task.metadata as metadata
+
+MAX_SOLID_ANGLE = 4.0 * math.pi
 
 class SceneLoader(ShowBase.ShowBase):
     
@@ -54,6 +62,13 @@ class SceneLoader(ShowBase.ShowBase):
             q.setR(model.orient_w)
             np.setQuat(q)
         
+        self.pandastate = katasked.panda.PandaState(self.cam, self.unique_nodepaths, self.nodepaths)
+        self.pool = pool.TaskPool(2)
+        
+        for m in self.unique_models:
+            t = metadata.MetadataDownloadTask(m)
+            self.pool.add_task(t)
+        
         self.disableMouse()
         pcore.attachLights(self.render)
         self.render.setShaderAuto()
@@ -67,7 +82,14 @@ class SceneLoader(ShowBase.ShowBase):
         self.interval.start()
         
     def run(self):
+        self.update_priority_task = self.taskMgr.doMethodLater(2, self.check_pool, 'check_pool')
+        
         ShowBase.ShowBase.run(self)
+        
+    def check_pool(self, task):
+        self.pool.poll(self.pandastate)
+        
+        return task.again
 
 def main():
     parser = argparse.ArgumentParser(description='Progressively loads a scene')

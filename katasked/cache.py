@@ -1,41 +1,31 @@
 import os
 import shove
-from meshtool.filters.print_filters.print_bounds import getBoundsInfo
 import open3dhub
 
 CURDIR = os.path.abspath(os.path.dirname(__file__))
-CACHE = os.path.join(CURDIR, '.cache')
-SHELF = shove.Shove(store='file://' + CACHE, compress=True, sync=1)
+METADATA_CACHE_FILE = os.path.join(CURDIR, '.cache')
+METADATA_SHOVER = shove.Shove(store='file://' + METADATA_CACHE_FILE, compress=True, sync=1)
 
-HASH_CACHE = os.path.join(CURDIR, '.hash-cache')
-HASH_SHELF = shove.Shove(store='file://' + HASH_CACHE, compress=True, sync=1)
+HASHDATA_CACHE_FILE = os.path.join(CURDIR, '.hash-cache')
+HASHDATA_SHOVER = shove.Shove(store='file://' + HASHDATA_CACHE_FILE, compress=True, sync=1)
 
-def get_tag(tag):
-    tagkey = "TAG_" + str(tag)
-    if tagkey not in SHELF:
-        SHELF[tagkey] = open3dhub.get_search_list('tags:"%s"' % tag)
-    return SHELF[tagkey]
+BAMDATA_CACHE_FILE = os.path.join(CURDIR, '.bam-cache')
+if not os.path.isdir(BAMDATA_CACHE_FILE):
+    os.mkdir(BAMDATA_CACHE_FILE)
 
-def get_bounds(path):
-    pathkey = 'BOUNDS_' + str(path)
-    if pathkey not in SHELF:
-        metadata, mesh = open3dhub.path_to_mesh(path, cache=True)
-        SHELF[pathkey] = getBoundsInfo(mesh)
-    
-    return SHELF[pathkey]
+def _cache_wrap(shover, key, func, *args, **kwargs):
+    if key not in shover:
+        shover[key] = func(*args, **kwargs)
+    return shover[key]
 
-def get_metadata(path):
-    key = 'METADATA_' + str(path)
-    if key not in SHELF:
-        metadata, mesh = open3dhub.path_to_mesh(path, cache=True)
-        SHELF[key] = metadata
-    
-    return SHELF[key]
+def cache_metadata_wrap(key, func, *args, **kwargs):
+    return _cache_wrap(METADATA_SHOVER, key, func, *args, **kwargs)
 
-def hashfetch(dlhash, httprange=None):
-    key = 'HASH_' + str(dlhash)
-    if key not in HASH_SHELF:
-        data = open3dhub._hashfetch(dlhash, httprange)
-        HASH_SHELF[key] = data
-    
-    return HASH_SHELF[key]
+def cache_data_wrap(key, func, *args, **kwargs):
+    return _cache_wrap(HASHDATA_SHOVER, key, func, *args, **kwargs)
+
+def cache_bam_wrap(key, meshdata, subfiles, modelslug):
+    cachefile = os.path.join(BAMDATA_CACHE_FILE, key)
+    if not os.path.isfile(cachefile):
+        open3dhub._load_into_bamfile(cachefile, meshdata, subfiles, modelslug)
+    return cachefile
