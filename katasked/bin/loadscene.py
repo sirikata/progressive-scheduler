@@ -86,7 +86,7 @@ class SceneLoader(ShowBase.ShowBase):
         self.loading_priority = 2147483647
         
         self.pandastate = katasked.panda.PandaState(self.cam, self.unique_nodepaths, self.nodepaths)
-        self.multiplexer = pool.MultiplexPool(2)
+        self.multiplexer = pool.MultiplexPool()
         
         for m in self.unique_models:
             t = metadata.MetadataDownloadTask(m)
@@ -127,6 +127,11 @@ class SceneLoader(ShowBase.ShowBase):
         
     def check_pool(self, task):
         finished_tasks = self.multiplexer.poll(self.pandastate)
+        
+        if len(finished_tasks) == 0 and self.multiplexer.empty():
+            print
+            print 'FINISHED LOADING'
+            print
         
         for t in finished_tasks:
             if isinstance(t, meshtask.MeshLoadTask):

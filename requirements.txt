@@ -4,3 +4,4 @@ meshtool
 numpy
 requests
 shove
+urllib3

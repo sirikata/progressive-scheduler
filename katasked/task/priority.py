@@ -11,10 +11,13 @@ class Metrics(object):
     def __init__(self):
         self.solid_angle = 0
         self.camera_angle = 0
+        self.perceptual_error = 0
     
     def combined(self):
-        return self.solid_angle * 50.0 + \
-                self.camera_angle
+        # completely arbitrary weights
+        return self.solid_angle * 50 + \
+                self.camera_angle * 1 + \
+                self.perceptual_error * 20
 
 def calc_priority(pandastate, tasks):
     task_modelslugs = dict((t.modelslug, t) for t in tasks)
@@ -23,10 +26,25 @@ def calc_priority(pandastate, tasks):
     for model, np in pandastate.nodepaths.iteritems():
         if model.slug in task_modelslugs:
             np_metrics[np] = Metrics()
+            
+            # add perceptual error, same for all models for a given task
+            perceptual_error = task_modelslugs[model.slug].perceptual_error
+            perceptual_error = 1.0 - (float(perceptual_error) / (1024 * 768))
+            np_metrics[np].perceptual_error = perceptual_error
     
-    # calc solid angle
+    # needed for solid angle
     camera_pos = pandastate.camera.getPos()
+    
+    # needed for camera angle
+    copied_np = p3d.NodePath("tempnode")
+    camera_quat = pandastate.camera.getQuat()
+    copied_np.setQuat(camera_quat)
+    camera_forward = camera_quat.getForward()
+    camera_forward.normalize()
+    
     for np, metrics in np_metrics.iteritems():
+        
+        # calc solid angle
         to_center = camera_pos - np.getPos()
         to_center_len = to_center.length()
         np_radius = np.getScale()[0]
@@ -39,15 +57,9 @@ def calc_priority(pandastate, tasks):
             solid_angle = 2.0 * math.pi * (1.0 - cos_alpha)
         
         metrics.solid_angle = solid_angle / MAX_SOLID_ANGLE
-    
-    # calc angle between camera and object
-    copied_np = p3d.NodePath("tempnode")
-    camera_quat = pandastate.camera.getQuat()
-    copied_np.setQuat(camera_quat)
-    camera_forward = camera_quat.getForward()
-    camera_forward.normalize()
-
-    for np, metrics in np_metrics.iteritems():
+        
+        
+        # calc angle between camera and object
         copied_np.lookAt(np.getPos())
         copied_forward = copied_np.getQuat().getForward()
         copied_forward.normalize()

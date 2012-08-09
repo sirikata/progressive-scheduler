@@ -9,19 +9,41 @@ def _run(atlas_hash, levelinfo, modelslug):
 class TextureDownloadTask(base.DownloadTask):
     """Downloads a texture level"""
     
-    def __init__(self, modelslug, metadata, levelinfo):
+    def __init__(self, modelslug, metadata, levelinfo, loaded_already):
         super(TextureDownloadTask, self).__init__(modelslug)
         self.metadata = metadata
         self.levelinfo = levelinfo
+        self.loaded_already = loaded_already
+        self.progressive = self.metadata['metadata']['types']['progressive']
+        self.perceptual_error = self._calc_perceptual_error()
         
         # gzip download size for textures is just the texture size itself
         # because they are encoded as JPEG, which gzip doesn't really do
         # anything for
         self.download_size = self.levelinfo['length']
 
+    def _update_loaded_already(self, loaded_already):
+        self.loaded_already = loaded_already
+        self.perceptual_error = self._calc_perceptual_error()
+
+    def _calc_current_loaded(self):
+        error_data = self.progressive['progressive_perceptual_error']
+        cur_triangles = self.loaded_already['triangles']
+        
+        for error_level in error_data:
+            if error_level['width'] == self.levelinfo['width'] and \
+               error_level['height'] == self.levelinfo['height'] and \
+               error_level['triangles'] == cur_triangles:
+                
+                return error_level
+            
+        raise Exception("Couldn't find current error data")
+
+    def _calc_perceptual_error(self):
+        return self._calc_current_loaded()['pixel_error']
+
     def run(self):
-        progressive = self.metadata['metadata']['types']['progressive']
-        atlas_hash = progressive['mipmaps']['./atlas.jpg']['hash']
+        atlas_hash = self.progressive['mipmaps']['./atlas.jpg']['hash']
         modelslug = self.modelslug + "_texture_%d" % self.levelinfo['offset']
         return self.pool.apply_async(_run, [atlas_hash, self.levelinfo, modelslug])
 
@@ -33,9 +55,13 @@ class TextureDownloadTask(base.DownloadTask):
         atlas_ranges = progressive['mipmaps']['./atlas.jpg']['byte_ranges']
         for levelinfo in atlas_ranges:
             if levelinfo['offset'] > self.levelinfo['offset']:
-                t = TextureDownloadTask(self.modelslug, self.metadata, levelinfo)
+                t = TextureDownloadTask(self.modelslug, self.metadata, levelinfo, self.loaded_already)
                 self.multiplexer.add_task(t)
                 break
+        
+        next_already_loaded = self._calc_current_loaded()
+        for t in self.multiplexer.get_tasks_by_slug(self.modelslug):
+            t._update_loaded_already(next_already_loaded)
 
     def __str__(self):
         return '<TextureDownloadTask %s>' % self.modelslug

@@ -17,8 +17,10 @@ class MeshDownloadTask(base.DownloadTask):
         super(MeshDownloadTask, self).__init__(modelslug)
         self.metadata = metadata
         
-        progressive = self.metadata['metadata']['types']['progressive']
-        self.download_size = progressive['size_gzip']
+        self.progressive = self.metadata['metadata']['types']['progressive']
+        self.download_size = self.progressive['size_gzip']
+        
+        self.perceptual_error = self.progressive['progressive_perceptual_error'][0]["pixel_error"]
 
     def run(self):
         progressive = self.metadata['metadata']['types']['progressive']
@@ -53,28 +55,36 @@ class MeshLoadTask(base.LoadTask):
     def __init__(self, modelslug, metadata, mesh_data, texture_data):
         super(MeshLoadTask, self).__init__(modelslug)
         self.metadata = metadata
+        self.progressive = self.metadata['metadata']['types']['progressive']
         self.boundsInfo = scene.SceneModel.extract_bounds_info(self.metadata)
         self.mesh_data = mesh_data
         self.texture_data = texture_data
+        
+        self.perceptual_error = self.progressive['progressive_perceptual_error'][0]["pixel_error"]
 
     def run(self):
         return self.pool.apply_async(_run_load, [self.mesh_data, self.boundsInfo, self.texture_data, self.modelslug])
 
+    def _update_loaded_already(self, loaded_already):
+        # no need to update perceptual error here, texture and refinement tasks get loaded after this
+        pass
+
     def finished(self, result):
         self.bam_file = result
         
+        base_loaded = self.progressive['progressive_perceptual_error'][0]
+        
         # add next texture level if exists (> 128x128)
-        progressive = self.metadata['metadata']['types']['progressive']
-        atlas_ranges = progressive['mipmaps']['./atlas.jpg']['byte_ranges']
+        atlas_ranges = self.progressive['mipmaps']['./atlas.jpg']['byte_ranges']
         for levelinfo in atlas_ranges:
             if levelinfo['width'] > 128 or levelinfo['height'] > 128:
-                t = texturetask.TextureDownloadTask(self.modelslug, self.metadata, levelinfo)
+                t = texturetask.TextureDownloadTask(self.modelslug, self.metadata, levelinfo, base_loaded)
                 self.multiplexer.add_task(t)
                 break
             
-        progressive_stream = progressive['progressive_stream']
+        progressive_stream = self.progressive['progressive_stream']
         if progressive_stream is not None:
-            t = refinementtask.MeshRefinementDownloadTask(self.modelslug, self.metadata)
+            t = refinementtask.MeshRefinementDownloadTask(self.modelslug, self.metadata, loaded_already=base_loaded)
             self.multiplexer.add_task(t)
 
     def __str__(self):

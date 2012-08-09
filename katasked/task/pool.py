@@ -1,6 +1,8 @@
 import heapq
 import multiprocessing
 import operator
+import time
+import collections
 import katasked.task.priority as priority
 import katasked.task.result as result
 import katasked.task.base as taskbase
@@ -14,17 +16,23 @@ class TaskPool(object):
         self.type_name = type_name
         self.pool = multiprocessing.Pool(self.num_procs)
         self.to_run = set()
+        self.task_slug_map = collections.defaultdict(set)
         self.running = []
         self.sequence_num = 0
         self.sequence_map = {}
+        self.last_action = time.time()
 
     def add_task(self, task):
         """Add a task to the pool"""
         task.pool = self
+        self.task_slug_map[task.modelslug].add(task)
         self.to_run.add(task)
         
     def apply_async(self, *args, **kwargs):
         return self.pool.apply_async(*args, **kwargs)
+
+    def get_tasks_by_slug(self, slug):
+        return self.task_slug_map[slug]
 
     def _check_waiting(self):
         """Checks list of running tasks for any that have finished"""
@@ -46,9 +54,15 @@ class TaskPool(object):
         """Executes tasks and gets results. Should be executed often."""
         finished_running = self._check_waiting()
 
+        now = time.time()
+        if now - self.last_action > 5:
+            self.last_action = now
+            print 'Waiting on', len(self.running), 'tasks to complete', len(self.to_run), 'queued.'
+        
         to_return = []
         for runningtask in finished_running:
             res = runningtask.result.get()
+            self.task_slug_map[runningtask.task.modelslug].remove(runningtask.task)
             runningtask.task.finished(res)
             to_return.append(runningtask.task)
 
@@ -61,6 +75,8 @@ class TaskPool(object):
         
         task_priorities = priority.calc_priority(pandastate, self.to_run)
         largestN = heapq.nlargest(num_to_run, task_priorities.iteritems(), key=operator.itemgetter(1))
+        
+        self.last_action = now
         
         for task, _ in largestN:
             self.sequence_map[task] = self.sequence_num
@@ -80,11 +96,13 @@ class MultiplexPool(object):
     """A task pool that multiplexes tasks across multiple TaskPool objects"""
     
     POOL_TYPES = [taskbase.DownloadTask, taskbase.LoadTask]
+    NUM_PROCS = {taskbase.DownloadTask: 4,
+                 taskbase.LoadTask: multiprocessing.cpu_count()}
     
-    def __init__(self, num_procs):
+    def __init__(self):
         self.pools = {}
         for pool_type in self.POOL_TYPES:
-            self.pools[pool_type] = TaskPool(num_procs, type_name="%s" % str(pool_type))
+            self.pools[pool_type] = TaskPool(self.NUM_PROCS[pool_type], type_name="%s" % str(pool_type))
     
     def add_task(self, task):
         for pool_type in self.POOL_TYPES:
@@ -94,6 +112,12 @@ class MultiplexPool(object):
                 return
         
         raise Exception("Unknown task type given to MultiplexPool")
+
+    def get_tasks_by_slug(self, slug):
+        tasks = []
+        for pool in self.pools.itervalues():
+            tasks.extend(pool.get_tasks_by_slug(slug))
+        return tasks
 
     def empty(self):
         for pool in self.pools.itervalues():

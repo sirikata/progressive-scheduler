@@ -16,6 +16,9 @@ class MetadataDownloadTask(base.DownloadTask):
         # metadata gzip download size varies from about 2KB-4KB
         # just use 5KB as a conservative estimate
         self.download_size = 1024 * 5
+        
+        # zero pixels, basically disabling for metadata
+        self.perceptual_error = 0
     
     def run(self):
         path = scene.SceneModel.unslug(self.modelslug)
