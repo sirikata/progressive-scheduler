@@ -1,11 +1,20 @@
 import math
 import collections
 
+import panda3d.core as p3d
+
+import katasked.task.base as taskbase
+
 MAX_SOLID_ANGLE = 4.0 * math.pi
 
 class Metrics(object):
     def __init__(self):
         self.solid_angle = 0
+        self.camera_angle = 0
+    
+    def combined(self):
+        return self.solid_angle * 50.0 + \
+                self.camera_angle
 
 def calc_priority(pandastate, tasks):
     task_modelslugs = dict((t.modelslug, t) for t in tasks)
@@ -31,6 +40,20 @@ def calc_priority(pandastate, tasks):
         
         metrics.solid_angle = solid_angle / MAX_SOLID_ANGLE
     
+    # calc angle between camera and object
+    copied_np = p3d.NodePath("tempnode")
+    camera_quat = pandastate.camera.getQuat()
+    copied_np.setQuat(camera_quat)
+    camera_forward = camera_quat.getForward()
+    camera_forward.normalize()
+
+    for np, metrics in np_metrics.iteritems():
+        copied_np.lookAt(np.getPos())
+        copied_forward = copied_np.getQuat().getForward()
+        copied_forward.normalize()
+        angle_change = copied_forward.angleDeg(camera_forward)
+        metrics.camera_angle = 1.0 - (angle_change / 360.0)
+    
     # combine metrics together
     task_priorities = collections.defaultdict(float)
     for model, np in pandastate.nodepaths.iteritems():
@@ -40,7 +63,10 @@ def calc_priority(pandastate, tasks):
         task = task_modelslugs[model.slug]
         metrics = np_metrics[np]
         
-        combined_priority = metrics.solid_angle
+        combined_priority = metrics.combined()
         task_priorities[task] += combined_priority
+        
+        if isinstance(task, taskbase.DownloadTask):
+            task_priorities[task] /= float(task.download_size)
     
     return task_priorities

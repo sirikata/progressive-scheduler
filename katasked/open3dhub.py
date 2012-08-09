@@ -5,16 +5,16 @@ import os
 import requests
 import urlparse
 
-import numpy
 import collada
 from meshtool.filters.panda_filters import pandacore
 from meshtool.filters.panda_filters import pdae_utils
 from meshtool.filters.simplify_filters import add_back_pm
 from meshtool.filters.print_filters.print_bounds import getBoundsInfo
-from panda3d.core import GeomNode, NodePath, Mat4
+import panda3d.core as p3d
 
 import cache
 import panda
+import util
 
 BASE_URL = 'http://open3dhub.com'
 # 'http://singular.stanford.edu'
@@ -68,6 +68,8 @@ class PathInfo(object):
     def __repr__(self):
         return str(self)
 
+# this will retry 4 times with exponential backoff: 1 second, 2, 4, 8
+@util.retry(requests.exceptions.HTTPError, 4, 1, 2)
 def urlfetch(url, httprange=None):
     """Fetches the given URL and returns data from it.
     Will take care of gzip if enabled on server."""
@@ -78,6 +80,9 @@ def urlfetch(url, httprange=None):
         headers['Range'] = 'bytes=%d-%d' % (offset, offset+length-1)
     
     resp = REQUESTS_SESSION.get(url, headers=headers)
+    
+    # raises HTTPError on non-200 response
+    resp.raise_for_status()
     
     return resp.content
     
@@ -127,14 +132,6 @@ def get_metadata(path):
 def get_tag(tag):
     return cache.cache_metadata_wrap('TAG_' + tag, get_search_list, 'tags:"%s"' % tag)
 
-def _get_bounds(path):
-    metadata, mesh = path_to_mesh(path)
-    return getBoundsInfo(mesh)
-
-def get_bounds(path):
-    pathkey = 'BOUNDS_' + str(path)
-    return cache.cache_metadata_wrap(pathkey, _get_bounds, path)
-
 def _make_aux_file_loader(metadata):
 
     typedata = metadata['metadata']['types']['optimized']
@@ -176,12 +173,27 @@ def load_mesh(mesh_data, subfiles):
     
     return mesh
 
-def _load_into_bamfile(bam_file, meshdata, subfiles, model_name):
-    mesh = load_mesh(meshdata, subfiles)
-    np = panda.mesh_to_nodepath(mesh)
+def texture_data_to_nodepath(texture_data):
+    tex = pandacore.textureFromData(texture_data)
+    tex.generateSimpleRamImage()
+    np = p3d.NodePath(p3d.PandaNode("dummytexture"))
+    np.setTexture(tex)
+    return np
+
+def _load_into_bamfile(bam_file, meshdata, boundsInfo, subfiles, model_name):
+    if meshdata is None:
+        try:
+            np = texture_data_to_nodepath(subfiles)
+        except:
+            print 'ERROR', bam_file, model_name
+            raise
+    else:
+        mesh = load_mesh(meshdata, subfiles)
+        np = panda.mesh_to_nodepath(mesh, boundsInfo)
     np.setName(model_name)
     np.writeBamFile(bam_file)
 
-def load_into_bamfile(meshdata, subfiles, modelslug):
+def load_into_bamfile(meshdata, boundsInfo, subfiles, modelslug):
     """Uses pycollada and panda3d to load meshdata and subfiles and write out to a bam file on disk"""
-    return cache.cache_bam_wrap(modelslug + '.bam', meshdata, subfiles, modelslug)
+    return cache.cache_bam_wrap(modelslug + '.bam', meshdata, boundsInfo, subfiles, modelslug)
+

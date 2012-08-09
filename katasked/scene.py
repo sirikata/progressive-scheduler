@@ -76,7 +76,7 @@ class SceneModel(object):
     
     def _get_bounds_info(self):
         if self._boundsInfo is None:
-            self._boundsInfo = open3dhub.get_bounds(self.path)
+            self._boundsInfo = SceneModel.extract_bounds_info(self.metadata)
         return self._boundsInfo
     
     boundsInfo = property(_get_bounds_info)
@@ -120,6 +120,17 @@ class SceneModel(object):
     @staticmethod
     def unslug(slug):
         return slug.replace('~', '/')
+    
+    @staticmethod
+    def extract_bounds_info(metadata):
+        bi = metadata['metadata']['types']['progressive']['metadata']['bounds_info']
+        boundsInfo = {}
+        boundsInfo['center_farthest_distance'] = bi['center_farthest_distance']
+        boundsInfo['center'] = numpy.array(bi['center'], dtype=numpy.float32)
+        boundsInfo['center_farthest'] = numpy.array(bi['center_farthest'], dtype=numpy.float32)
+        boundsInfo['bounds'] = (numpy.array(bi['bounds'][0], dtype=numpy.float32),
+                                numpy.array(bi['bounds'][1], dtype=numpy.float32))
+        return boundsInfo
 
     @staticmethod
     def from_json(j):

@@ -1,7 +1,5 @@
-import os
 import numpy
 import collada
-import meshtool.filters.print_filters.print_bounds as print_bounds
 import panda3d.core as p3d
 import meshtool.filters.panda_filters.pandacore as pcore
 
@@ -38,7 +36,7 @@ def centerAndScale(nodePath, boundsInfo):
     
     return newRoot
 
-def mesh_to_nodepath(mesh):
+def mesh_to_nodepath(mesh, boundsInfo):
     scene_members = pcore.getSceneMembers(mesh)
     
     rotateNode = p3d.GeomNode("rotater")
@@ -67,4 +65,4 @@ def mesh_to_nodepath(mesh):
     
     rbc.collect()
     
-    return centerAndScale(rotatePath, print_bounds.getBoundsInfo(mesh))
+    return centerAndScale(rotatePath, boundsInfo)

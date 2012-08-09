@@ -25,7 +25,7 @@ class MotionCapture(ShowBase.ShowBase):
         terrain = terrain[0]
         
         mesh = terrain.mesh
-        np = katasked.panda.mesh_to_nodepath(mesh)
+        np = katasked.panda.mesh_to_nodepath(mesh, terrain.boundsInfo)
         
         ShowBase.ShowBase.__init__(self)
         
