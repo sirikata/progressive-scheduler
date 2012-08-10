@@ -65,5 +65,4 @@ def mesh_to_nodepath(mesh, boundsInfo):
     
     newroot = centerAndScale(rotatePath, boundsInfo)
     newroot.flattenStrong()
-    modelPath.ls()
     return modelPath
