@@ -25,18 +25,32 @@ class MotionCapture(ShowBase.ShowBase):
         terrain = terrain[0]
         
         mesh = terrain.mesh
-        np = katasked.panda.mesh_to_nodepath(mesh, terrain.boundsInfo)
+        boundsInfo = scene.SceneModel.extract_bounds_info(terrain.metadata, 'optimized')
+        terrain_np = katasked.panda.mesh_to_nodepath(mesh, boundsInfo)
         
         ShowBase.ShowBase.__init__(self)
         
         print
-        print '==========='
-        print 'Use w-s-a-d keys to move, arrow keys or right-click-drag to move camera.'
-        print 'Press enter when ready to start capturing.'
-        print '==========='
+        print '==================================='
+        print '             Controls              '
+        print '==================================='
+        print '                W - move forward'
+        print '                S - move backward'
+        print '                A - strafe left'
+        print '                D - strafe right'
+        print '       left arrow - turn left'
+        print '      right arrow - turn right'
+        print ' right click drag - camera movement'
+        print '                [ - slow down'
+        print '                ] - speed up'
+        print
+        print '-----------------------------------------'
+        print 'Press enter when ready to start capturing'
+        print '-----------------------------------------'
         print
         
-        np.reparentTo(self.render)
+        np = self.render.attachNewNode("wrapnode")
+        terrain_np.reparentTo(np)
         np.setPos(terrain.x, terrain.y, terrain.z)
         np.setScale(terrain.scale, terrain.scale, terrain.scale)
         q = p3d.Quat()
@@ -72,12 +86,13 @@ class MotionCapture(ShowBase.ShowBase):
     
     def startCapture(self):
         print 'Starting motion capture. Press enter when ready to stop.'
+        self.start_time = p3d.ClockObject.getGlobalClock().getFrameTime()
         self.capTask = self.taskMgr.doMethodLater(0.2, self.capturePoints, 'capturePoints')
         self.acceptOnce('enter', self.finishCapture)
     
     def finishCapture(self):
         self.taskMgr.remove(self.capTask)
-        self.elapsed_time = p3d.ClockObject.getGlobalClock().getFrameTime()
+        self.elapsed_time = p3d.ClockObject.getGlobalClock().getFrameTime() - self.start_time
         print 'Captured', len(self.positions), 'camera positions over', self.elapsed_time
         
         json_out = {'positions': self.positions,

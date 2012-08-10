@@ -122,8 +122,8 @@ class SceneModel(object):
         return slug.replace('~', '/')
     
     @staticmethod
-    def extract_bounds_info(metadata):
-        bi = metadata['metadata']['types']['progressive']['metadata']['bounds_info']
+    def extract_bounds_info(metadata, model_type='progressive'):
+        bi = metadata['metadata']['types'][model_type]['metadata']['bounds_info']
         boundsInfo = {}
         boundsInfo['center_farthest_distance'] = bi['center_farthest_distance']
         boundsInfo['center'] = numpy.array(bi['center'], dtype=numpy.float32)

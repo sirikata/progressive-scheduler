@@ -36,10 +36,13 @@ class MotionReplay(ShowBase.ShowBase):
         terrain = terrain[0]
         
         mesh = terrain.mesh
-        np = katasked.panda.mesh_to_nodepath(mesh, terrain.boundsInfo)
+        boundsInfo = scene.SceneModel.extract_bounds_info(terrain.metadata, 'optimized')
+        terrain_np = katasked.panda.mesh_to_nodepath(mesh, boundsInfo)
         
         ShowBase.ShowBase.__init__(self)
         
+        np = self.render.attachNewNode("wrapnode")
+        terrain_np.reparentTo(np)
         np.reparentTo(self.render)
         np.setPos(terrain.x, terrain.y, terrain.z)
         np.setScale(terrain.scale, terrain.scale, terrain.scale)
