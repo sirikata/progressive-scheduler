@@ -15,9 +15,9 @@ class Metrics(object):
     
     def combined(self):
         # completely arbitrary weights
-        return self.solid_angle * 50 + \
+        return self.solid_angle * 10000 + \
                 self.camera_angle * 1 + \
-                self.perceptual_error * 20
+                self.perceptual_error * 1
 
 def calc_priority(pandastate, tasks):
     task_modelslugs = dict((t.modelslug, t) for t in tasks)
@@ -39,6 +39,7 @@ def calc_priority(pandastate, tasks):
     copied_np = p3d.NodePath("tempnode")
     camera_quat = pandastate.camera.getQuat()
     copied_np.setQuat(camera_quat)
+    copied_np.setPos(camera_pos)
     camera_forward = camera_quat.getForward()
     camera_forward.normalize()
     
