@@ -31,7 +31,9 @@ PROGRESSIVE_CHUNK_SIZE = 2 * 1024 * 1024 # 2 MB
 CURDIR = os.path.dirname(__file__)
 TEMPDIR = os.path.join(CURDIR, '.temp_models')
 
-REQUESTS_SESSION = requests.session()
+def _get_session():
+    return requests.session(timeout=6)
+REQUESTS_SESSION = _get_session()
 
 class PathInfo(object):
     """Helper class for dealing with CDN paths"""
@@ -69,20 +71,27 @@ class PathInfo(object):
         return str(self)
 
 # this will retry 4 times with exponential backoff: 1 second, 2, 4, 8
-@util.retry(requests.exceptions.HTTPError, 4, 1, 2)
+@util.retry((requests.HTTPError, requests.Timeout), 4, 1, 2)
 def urlfetch(url, httprange=None):
     """Fetches the given URL and returns data from it.
     Will take care of gzip if enabled on server."""
+    global REQUESTS_SESSION
     
     headers = {}
     if httprange is not None:
         offset, length = httprange
         headers['Range'] = 'bytes=%d-%d' % (offset, offset+length-1)
     
-    resp = REQUESTS_SESSION.get(url, headers=headers)
-    
-    # raises HTTPError on non-200 response
-    resp.raise_for_status()
+    try:
+        resp = REQUESTS_SESSION.get(url, headers=headers)
+        # raises HTTPError on non-200 response
+        resp.raise_for_status()
+    except (requests.HTTPError, requests.Timeout):
+        # close all open connections if we get some error
+        REQUESTS_SESSION.close()
+        REQUESTS_SESSION = _get_session()
+        # then re-raise so it will retry
+        raise
     
     return resp.content
     
