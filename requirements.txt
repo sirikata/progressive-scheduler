@@ -5,3 +5,4 @@ numpy
 requests
 shove
 urllib3
+Cython

@@ -15,7 +15,7 @@ if sys.platform == 'win32':
 elif sys.platform == 'darwin':
     args['include_dirs'] = ['/Developer/Panda3D/include/']
 elif sys.platform == 'linux2':
-    args['library_dirs'] = [r'/usr/lib/panda3d']
+    args['library_dirs'] = [r'/usr/lib/panda3d', r'/usr/lib64/panda3d']
     args['include_dirs'] = ['/usr/include/panda3d/']
     args['libraries'] = ['panda']
 else:
