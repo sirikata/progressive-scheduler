@@ -39,8 +39,8 @@ def centerAndScale(nodePath, boundsInfo):
 def mesh_to_nodepath(mesh, boundsInfo):
     scene_members = pcore.getSceneMembers(mesh)
     
-    rotateNode = p3d.GeomNode("rotater")
-    rotatePath = p3d.NodePath(rotateNode)
+    rootNode = p3d.NodePath("rootnode")
+    rotatePath = rootNode.attachNewNode("rotater")
     matrix = numpy.identity(4)
     if mesh.assetInfo.upaxis == collada.asset.UP_AXIS.X_UP:
         r = collada.scene.RotateTransform(0,1,0,90)
@@ -50,9 +50,9 @@ def mesh_to_nodepath(mesh, boundsInfo):
         matrix = r.matrix
     rotatePath.setMat(p3d.Mat4(*matrix.T.flatten().tolist()))
     
-    rbc = p3d.RigidBodyCombiner('combiner')
-    rbcPath = rotatePath.attachNewNode(rbc)
-    
+    modelNode = p3d.ModelNode("colladanode")
+    modelNode.setPreserveTransform(p3d.ModelNode.PTNet)
+    modelPath = rotatePath.attachNewNode(modelNode)
     for geom, renderstate, mat4 in scene_members:
         node = p3d.GeomNode("primitive")
         node.addGeom(geom)
@@ -60,9 +60,10 @@ def mesh_to_nodepath(mesh, boundsInfo):
             # FIXME: disabled transparency attrib because of progressive transparency bug
             renderstate = renderstate.removeAttrib(p3d.ColorScaleAttrib)
             node.setGeomState(0, renderstate)
-        geomPath = rbcPath.attachNewNode(node)
+        geomPath = modelPath.attachNewNode(node)
         geomPath.setMat(mat4)
     
-    rbc.collect()
-    
-    return centerAndScale(rotatePath, boundsInfo)
+    newroot = centerAndScale(rotatePath, boundsInfo)
+    newroot.flattenStrong()
+    modelPath.ls()
+    return modelPath
