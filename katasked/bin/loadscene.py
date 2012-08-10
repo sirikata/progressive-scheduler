@@ -35,6 +35,8 @@ class SceneLoader(ShowBase.ShowBase):
         self.scenefile = scenefile
         self.scene = scene.Scene.fromfile(scenefile)
         self.unique_models = set(m.slug for m in self.scene)
+        self.multiplexer = pool.MultiplexPool()
+        
         print '%d objects in scene, %d unique' % (len(self.scene), len(self.unique_models))
         
         # turns on lazy loading of textures
@@ -86,7 +88,6 @@ class SceneLoader(ShowBase.ShowBase):
         self.loading_priority = 2147483647
         
         self.pandastate = katasked.panda.PandaState(self.cam, self.unique_nodepaths, self.nodepaths)
-        self.multiplexer = pool.MultiplexPool()
         
         for m in self.unique_models:
             t = metadata.MetadataDownloadTask(m)
@@ -168,7 +169,7 @@ class SceneLoader(ShowBase.ShowBase):
             args = self.waiting.pop(0)
             if args[0] == LOAD_TYPE.INITIAL_MODEL:
                 modelpath, np = args[1], args[2]
-                modelpath.reparentTo(np)
+                modelpath.getChild(0).reparentTo(np)
             elif args[0] == LOAD_TYPE.TEXTURE_UPDATE:
                 np, newtex = args[1], args[2]
                 texnp = np.find("**/primitive")
