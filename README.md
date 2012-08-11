@@ -18,3 +18,4 @@ A an evaluation framework for progressive mesh scheduling
 
 * bin/pathcapture.py - captures a motion path for a scene into a JSON file
 * bin/pathreplay.py - replays a motion path for a scene
+* bin/loadscene.py - loads a scene progressively, with an optional motion path

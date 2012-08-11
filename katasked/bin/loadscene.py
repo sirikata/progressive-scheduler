@@ -42,7 +42,7 @@ class SceneLoader(ShowBase.ShowBase):
         # turns on lazy loading of textures
         p3d.loadPrcFileData('', 'preload-textures 0')
         p3d.loadPrcFileData('', 'preload-simple-textures 1')
-        p3d.loadPrcFileData('', 'compressed-textures 0')
+        p3d.loadPrcFileData('', 'compressed-textures 1')
         p3d.loadPrcFileData('', 'allow-incomplete-render 1')
         
         # window size to 1024x768
@@ -53,6 +53,15 @@ class SceneLoader(ShowBase.ShowBase):
         # create a nodepath for each unique model
         self.unique_nodepaths = dict((m, p3d.NodePath(m)) for m in self.unique_models)
         
+        self.rigid_body_combiners = {}
+        self.rigid_body_combiner_np = {}
+        for m in self.unique_models:
+            rbc = p3d.RigidBodyCombiner(m)
+            self.rigid_body_combiners[m] = rbc
+            np = p3d.NodePath(rbc)
+            np.reparentTo(self.render)
+            self.rigid_body_combiner_np[m] = np
+        
         # find out how many objects are going to be instanced for each node
         self.instance_count = collections.defaultdict(int)
         for model in self.scene:
@@ -60,6 +69,7 @@ class SceneLoader(ShowBase.ShowBase):
         
         # then instance each unique model to its instantiation in the actual scene
         self.nodepaths = {}
+        self.nodepaths_byslug = collections.defaultdict(list)
         for model in self.scene:
             unique_np = self.unique_nodepaths[model.slug]
             node_name = model.slug + "_%.7g_%.7g_%.7g" % (model.x, model.y, model.z)
@@ -69,10 +79,10 @@ class SceneLoader(ShowBase.ShowBase):
                 unique_np.reparentTo(self.render)
                 np = unique_np
             else:
-                np = self.render.attachNewNode(node_name)
-                unique_np.instanceTo(np)
+                np = self.rigid_body_combiner_np[model.slug].attachNewNode(node_name)
             
             self.nodepaths[model] = np
+            self.nodepaths_byslug[model.slug].append(np)
             np.setPos(model.x, model.y, model.z)
             np.setScale(model.scale, model.scale, model.scale)
             q = p3d.Quat()
@@ -81,6 +91,9 @@ class SceneLoader(ShowBase.ShowBase):
             q.setK(model.orient_z)
             q.setR(model.orient_w)
             np.setQuat(q)
+        
+        for rbc in self.rigid_body_combiners.itervalues():
+            rbc.collect()
         
         self.waiting = []
         self.pm_waiting = collections.defaultdict(list)
@@ -133,6 +146,7 @@ class SceneLoader(ShowBase.ShowBase):
             print
             print 'FINISHED LOADING'
             print
+            return task.done
         
         for t in finished_tasks:
             if isinstance(t, meshtask.MeshLoadTask):
@@ -150,9 +164,8 @@ class SceneLoader(ShowBase.ShowBase):
         return task.again
 
     def model_loaded(self, modelpath, modelslug):
-        np = self.unique_nodepaths[modelslug]
         self.models_loaded.add(modelslug)
-        self.waiting.append((LOAD_TYPE.INITIAL_MODEL, modelpath, np))
+        self.waiting.append((LOAD_TYPE.INITIAL_MODEL, modelpath, modelslug))
         for pm_refinements in self.pm_waiting[modelslug]:
             self.waiting.append((LOAD_TYPE.MESH_REFINEMENT, modelslug, pm_refinements))
         del self.pm_waiting[modelslug]
@@ -168,18 +181,30 @@ class SceneLoader(ShowBase.ShowBase):
         if len(self.waiting) > 0:
             args = self.waiting.pop(0)
             if args[0] == LOAD_TYPE.INITIAL_MODEL:
-                modelpath, np = args[1], args[2]
-                modelpath.getChild(0).reparentTo(np)
+                modelpath, modelslug = args[1], args[2]
+                
+                np = self.unique_nodepaths[modelslug]
+                modelnode = modelpath.getChild(0)
+                geomnode = modelnode.getChild(0)
+                trans = modelnode.getTransform()
+                geomnode.setTransform(trans)
+                self.unique_nodepaths[modelslug] = geomnode
+                
+                if self.instance_count[modelslug] == 1:
+                    geomnode.reparentTo(np)
+                else:
+                    for instance_np in self.nodepaths_byslug[modelslug]:
+                        geomnode.instanceTo(instance_np)
+                    self.rigid_body_combiners[modelslug].collect()
+                
             elif args[0] == LOAD_TYPE.TEXTURE_UPDATE:
                 np, newtex = args[1], args[2]
-                texnp = np.find("**/primitive")
-                texnp.setTextureOff(1)
-                texnp.setTexture(newtex, 1)
+                np.setTextureOff(1)
+                np.setTexture(newtex, 1)
             elif args[0] == LOAD_TYPE.MESH_REFINEMENT:
                 modelslug, pm_refinements = args[1], args[2]
                 np = self.unique_nodepaths[modelslug]
-                toupdate = np.find("**/primitive")
-                pdae_updater.update_nodepath(toupdate.node(), pm_refinements)
+                pdae_updater.update_nodepath(np.node(), pm_refinements)
         
         return task.again
 
