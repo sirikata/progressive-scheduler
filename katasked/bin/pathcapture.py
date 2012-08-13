@@ -125,7 +125,7 @@ def main():
     parser = argparse.ArgumentParser(description='Captures a motion path for a scene into a file')
     parser.add_argument('--out', '-o', metavar='motioncap.json', type=argparse.FileType('w'), required=True,
                         help='file to save motion path to')
-    parser.add_argument('--scene', '--in', '-i', metavar='scene.json', type=argparse.FileType('r'), required=True,
+    parser.add_argument('--scene', '--in', '-i', '-s', metavar='scene.json', type=argparse.FileType('r'), required=True,
                         help='scene file to render during capture (only terrain is displayed)')
     
     args = parser.parse_args()
