@@ -25,6 +25,7 @@ class MetadataDownloadTask(base.DownloadTask):
         return self.pool.apply_async(_run, [path])
 
     def finished(self, result):
+        self.metadata = result
         t = meshtask.MeshDownloadTask(self.modelslug, result)
         self.multiplexer.add_task(t)
 

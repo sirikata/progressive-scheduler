@@ -3,14 +3,16 @@
 import sys
 import json
 import collections
-import time
+import math
 
 import argparse
 import panda3d.core as p3d
 import direct.showbase.ShowBase as ShowBase
 import direct.interval.MopathInterval as MopathInterval
+import direct.gui as gui
 import meshtool.filters.panda_filters.pandacore as pcore
 import meshtool.filters.panda_filters.pandacontrols as controls
+import meshtool.filters.print_filters.print_pm_perceptual_error as percepfilter
 
 import pathmangle
 import katasked.scene as scene
@@ -30,7 +32,7 @@ class LOAD_TYPE:
 
 class SceneLoader(ShowBase.ShowBase):
     
-    def __init__(self, capturefile, scenefile):
+    def __init__(self, capturefile, scenefile, showstats=False):
         
         self.scenefile = scenefile
         self.scene = scene.Scene.fromfile(scenefile)
@@ -49,6 +51,10 @@ class SceneLoader(ShowBase.ShowBase):
         p3d.loadPrcFileData('', 'win-size 1024 768')
         
         ShowBase.ShowBase.__init__(self)
+        
+        # background color sky blue
+        self.win.setClearColorActive(True)
+        self.win.setClearColor(p3d.VBase4(0.5294, 0.8078, 235, 0.9215))
         
         # create a nodepath for each unique model
         self.unique_nodepaths = dict((m, p3d.NodePath(m)) for m in self.unique_models)
@@ -115,6 +121,30 @@ class SceneLoader(ShowBase.ShowBase):
         self.camLens.setNear(8.0)
         self.render.setAntialias(p3d.AntialiasAttrib.MAuto)
         
+        self.showstats = showstats
+        if showstats:
+            self.num_metadata_loaded = 0
+            self.num_models_loaded = 0
+            self.num_texture_updates = 0
+            self.num_mesh_refinements = 0
+            self.total_texture_updates = 0
+            self.total_mesh_refinements = 0
+            
+            self.txtMetadataLoaded = gui.OnscreenText.OnscreenText(text='', style=1, pos=(0.01, -0.05),
+                                                                 parent=self.a2dTopLeft, align=p3d.TextNode.ALeft,
+                                                                 scale=0.05, fg=(0.1, 0.1, 0.1, 1), shadow=(0.9, 0.9, 0.9, 1))
+            self.txtUniqueLoaded = gui.OnscreenText.OnscreenText(text='', style=1, pos=(0.01, -0.11),
+                                                                 parent=self.a2dTopLeft, align=p3d.TextNode.ALeft,
+                                                                 scale=0.05, fg=(0.1, 0.1, 0.1, 1), shadow=(0.9, 0.9, 0.9, 1))
+            self.txtTextureUpdates = gui.OnscreenText.OnscreenText(text='', style=1, pos=(0.01, -0.17),
+                                                                 parent=self.a2dTopLeft, align=p3d.TextNode.ALeft,
+                                                                 scale=0.05, fg=(0.1, 0.1, 0.1, 1), shadow=(0.9, 0.9, 0.9, 1))
+            self.txtMeshRefinements = gui.OnscreenText.OnscreenText(text='', style=1, pos=(0.01, -0.23),
+                                                                 parent=self.a2dTopLeft, align=p3d.TextNode.ALeft,
+                                                                 scale=0.05, fg=(0.1, 0.1, 0.1, 1), shadow=(0.9, 0.9, 0.9, 1))
+            
+            self.update_stats()
+        
         if capturefile is not None:
             self.capturefile = capturefile
             self.capturedata = json.load(self.capturefile)
@@ -134,8 +164,8 @@ class SceneLoader(ShowBase.ShowBase):
             controls.MouseCamera()
         
     def run(self):
-        self.update_priority_task = self.taskMgr.doMethodLater(0.2, self.check_pool, 'check_pool')
-        self.load_waiting_task = self.taskMgr.doMethodLater(0.3, self.load_waiting, 'load_waiting')
+        self.update_priority_task = self.taskMgr.doMethodLater(0.5, self.check_pool, 'check_pool')
+        self.load_waiting_task = self.taskMgr.doMethodLater(0.1, self.load_waiting, 'load_waiting')
         
         ShowBase.ShowBase.run(self)
         
@@ -158,8 +188,26 @@ class SceneLoader(ShowBase.ShowBase):
                     self.waiting.append((LOAD_TYPE.MESH_REFINEMENT, t.modelslug, t.pm_refinements))
                 else:
                     self.pm_waiting[t.modelslug].append(t.pm_refinements)
+            elif isinstance(t, metadata.MetadataDownloadTask):
+                if self.showstats:
+                    self.num_metadata_loaded += 1
+                    
+                    progressive = t.metadata['metadata']['types']['progressive']
+                    byte_ranges = progressive['mipmaps']['./atlas.jpg']['byte_ranges']
+                    baselevel = len(byte_ranges)
+                    for i, levelinfo in enumerate(byte_ranges):
+                        if levelinfo['width'] >= 128 or levelinfo['height'] >= 128:
+                            baselevel = i
+                            break
+                    self.total_texture_updates += len(byte_ranges[baselevel+1:])
+                    
+                    if 'progressive_stream_size' in progressive:
+                        self.total_mesh_refinements += int(math.ceil(progressive['progressive_stream_size'] / percepfilter.PM_CHUNK_SIZE))
+                    
+                    self.update_stats()
                 
             self.loading_priority -= 1
+        
         
         return task.again
 
@@ -197,16 +245,32 @@ class SceneLoader(ShowBase.ShowBase):
                         geomnode.instanceTo(instance_np)
                     self.rigid_body_combiners[modelslug].collect()
                 
+                if self.showstats:
+                    self.num_models_loaded += 1
+                    self.update_stats()
+                
             elif args[0] == LOAD_TYPE.TEXTURE_UPDATE:
                 np, newtex = args[1], args[2]
                 np.setTextureOff(1)
                 np.setTexture(newtex, 1)
+                if self.showstats:
+                    self.num_texture_updates += 1
+                    self.update_stats()
             elif args[0] == LOAD_TYPE.MESH_REFINEMENT:
                 modelslug, pm_refinements = args[1], args[2]
                 np = self.unique_nodepaths[modelslug]
                 pdae_updater.update_nodepath(np.node(), pm_refinements)
+                if self.showstats:
+                    self.num_mesh_refinements += 1
+                    self.update_stats()
         
         return task.again
+    
+    def update_stats(self):
+        self.txtMetadataLoaded.setText('Metadata Loaded: %d/%d' % (self.num_metadata_loaded, len(self.unique_models)))
+        self.txtUniqueLoaded.setText('Base Mesh Loaded: %d/%d' % (self.num_models_loaded, len(self.unique_models)))
+        self.txtTextureUpdates.setText('Texture Updates: %d/%d' % (self.num_texture_updates, self.total_texture_updates))
+        self.txtMeshRefinements.setText('Mesh Refinements: %d/%d' % (self.num_mesh_refinements, self.total_mesh_refinements))
 
 def main():
     parser = argparse.ArgumentParser(description='Progressively loads a scene')
@@ -214,10 +278,12 @@ def main():
                         help='File of the motion capture to use for the camera. If not specified, keyboard and mouse controls are enabled.')
     parser.add_argument('--scene', '-s', metavar='scene.json', type=argparse.FileType('r'), required=True,
                         help='Scene file to render.')
+    parser.add_argument('--show-stats', action='store_true', default=False,
+                        help='Display on-screen statistics about scene while loading')
     
     args = parser.parse_args()
     
-    app = SceneLoader(args.capture, args.scene)
+    app = SceneLoader(args.capture, args.scene, args.show_stats)
     app.run()
 
 if __name__ == '__main__':
