@@ -182,7 +182,14 @@ class SceneLoader(ShowBase.ShowBase):
         ShowBase.ShowBase.run(self)
         
     def check_pool(self, task):
+        t0 = time.time()
         finished_tasks = self.multiplexer.poll(self.pandastate)
+        t1 = time.time()
+        time_took = t1-t0
+        time_wait = time_took * 2.0
+        time_wait = min(time_wait, 1)
+        time_wait = max(time_wait, 0.1)
+        task.delayTime = time_wait
         
         if len(finished_tasks) == 0 and self.multiplexer.empty():
             print
@@ -214,7 +221,7 @@ class SceneLoader(ShowBase.ShowBase):
                     self.total_texture_updates += len(byte_ranges[baselevel+1:])
                     
                     if 'progressive_stream_size' in progressive:
-                        self.total_mesh_refinements += int(math.ceil(progressive['progressive_stream_size'] / percepfilter.PM_CHUNK_SIZE))
+                        self.total_mesh_refinements += int(math.ceil(progressive['progressive_stream_size'] / float(percepfilter.PM_CHUNK_SIZE)))
                     
                     self.update_stats()
                 
@@ -272,6 +279,10 @@ class SceneLoader(ShowBase.ShowBase):
                 modelslug, pm_refinements = args[1], args[2]
                 np = self.unique_nodepaths[modelslug]
                 pdae_updater.update_nodepath(np.node(), pm_refinements)
+                
+                if self.instance_count[modelslug] > 1:
+                    self.rigid_body_combiners[modelslug].collect()
+                
                 if self.showstats:
                     self.num_mesh_refinements += 1
                     self.update_stats()
