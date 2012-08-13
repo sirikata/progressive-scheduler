@@ -46,7 +46,7 @@ class MeshRefinementDownloadTask(base.DownloadTask):
         for error_level in error_data:
             if error_level['width'] == self.loaded_already['width'] and \
                error_level['height'] == self.loaded_already['height'] and \
-               error_level['triangles'] > self.loaded_already['triangles']:
+               error_level['triangles'] >= self.loaded_already['triangles']:
                 
                 return error_level
         

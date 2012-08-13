@@ -61,8 +61,9 @@ class TaskPool(object):
         
         to_return = []
         for runningtask in finished_running:
-            res = runningtask.result.get()
             self.task_slug_map[runningtask.task.modelslug].remove(runningtask.task)
+        for runningtask in finished_running:
+            res = runningtask.result.get()
             runningtask.task.finished(res)
             to_return.append(runningtask.task)
 
