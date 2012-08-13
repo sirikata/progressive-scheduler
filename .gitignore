@@ -1,3 +1,6 @@
 katasked/.cache
 katasked/.hash-cache
 katasked/.bam-cache
+katasked/pdae_updater/build
+katasked/pdae_updater/cython_impl.cpp
+katasked/pdae_updater/cython_impl.so
