@@ -1,9 +1,11 @@
 #!/usr/bin/env python2
 
+import os
 import sys
 import json
 import collections
 import math
+import time
 
 import argparse
 import panda3d.core as p3d
@@ -32,12 +34,14 @@ class LOAD_TYPE:
 
 class SceneLoader(ShowBase.ShowBase):
     
-    def __init__(self, capturefile, scenefile, showstats=False):
+    def __init__(self, capturefile, scenefile, showstats=False, screenshot_dir=None):
         
         self.scenefile = scenefile
+        self.capturefile = capturefile
         self.scene = scene.Scene.fromfile(scenefile)
         self.unique_models = set(m.slug for m in self.scene)
         self.multiplexer = pool.MultiplexPool()
+        self.screenshot_dir = screenshot_dir
         
         print '%d objects in scene, %d unique' % (len(self.scene), len(self.unique_models))
         
@@ -54,7 +58,7 @@ class SceneLoader(ShowBase.ShowBase):
         
         # background color sky blue
         self.win.setClearColorActive(True)
-        self.win.setClearColor(p3d.VBase4(0.5294, 0.8078, 235, 0.9215))
+        self.win.setClearColor(p3d.VBase4(0.5294, 0.8078, 0.9215, 0))
         
         # create a nodepath for each unique model
         self.unique_nodepaths = dict((m, p3d.NodePath(m)) for m in self.unique_models)
@@ -158,7 +162,6 @@ class SceneLoader(ShowBase.ShowBase):
             self.mopath = self.curve_creator.getMotionPath()
             
             self.interval = MopathInterval.MopathInterval(self.mopath, self.cam, duration=self.duration, name="Camera Replay")
-            self.interval.start()
         else:
             controls.KeyboardMovement()
             controls.MouseCamera()
@@ -166,6 +169,15 @@ class SceneLoader(ShowBase.ShowBase):
     def run(self):
         self.update_priority_task = self.taskMgr.doMethodLater(0.5, self.check_pool, 'check_pool')
         self.load_waiting_task = self.taskMgr.doMethodLater(0.1, self.load_waiting, 'load_waiting')
+        
+        if self.screenshot_dir is not None:
+            self.start_time = None
+            self.screenshot_info = []
+            self.screenshot_task = self.taskMgr.doMethodLater(0, self.trigger_screenshot, 'screenshot_task')
+        
+        if self.capturefile is not None:
+            self.interval.start()
+            self.taskMgr.doMethodLater(self.duration + 2.0, self.finished, 'exiter')
         
         ShowBase.ShowBase.run(self)
         
@@ -265,7 +277,27 @@ class SceneLoader(ShowBase.ShowBase):
                     self.update_stats()
         
         return task.again
-    
+
+    def trigger_screenshot(self, task):
+        if self.start_time is None:
+            self.start_time = p3d.ClockObject.getGlobalClock().getLongTime()
+            task.delayTime = 1.0
+            return task.again
+        
+        run_time = p3d.ClockObject.getGlobalClock().getLongTime() - self.start_time
+        fname = ('%07.2f' % run_time) + '.png'
+        self.screenshot_info.append({'filename': fname,
+                                     'position': list(self.cam.getPos()),
+                                     'hpr': list(self.cam.getHpr())})
+        self.win.saveScreenshot(os.path.join(self.screenshot_dir, 'realtime', fname))
+        return task.again
+
+    def finished(self, task):
+        if self.screenshot_dir is not None:
+            with open(os.path.join(self.screenshot_dir, 'info.json'), 'w') as f:
+                json.dump(self.screenshot_info, f, indent=2)
+        sys.exit(0)
+
     def update_stats(self):
         self.txtMetadataLoaded.setText('Metadata Loaded: %d/%d' % (self.num_metadata_loaded, len(self.unique_models)))
         self.txtUniqueLoaded.setText('Base Mesh Loaded: %d/%d' % (self.num_models_loaded, len(self.unique_models)))
@@ -280,10 +312,21 @@ def main():
                         help='Scene file to render.')
     parser.add_argument('--show-stats', action='store_true', default=False,
                         help='Display on-screen statistics about scene while loading')
+    parser.add_argument('--dump-screenshot', '-d', metavar='directory', help='Directory to dump screenshots to')
     
     args = parser.parse_args()
     
-    app = SceneLoader(args.capture, args.scene, args.show_stats)
+    outdir = None
+    if args.dump_screenshot is not None:
+        outdir = os.path.abspath(args.dump_screenshot)
+        if os.path.exists(outdir) and not os.path.isdir(outdir):
+            parser.error('Invalid screenshots directory: %s' % outdir)
+        elif not os.path.exists(outdir):
+            os.makedirs(outdir)
+    
+    app = SceneLoader(args.capture, args.scene,
+                      showstats=args.show_stats,
+                      screenshot_dir=outdir)
     app.run()
 
 if __name__ == '__main__':
