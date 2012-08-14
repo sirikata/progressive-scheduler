@@ -1,32 +1,13 @@
 #!/usr/bin/env python2
 
 import os
-import sys
 import json
-import collections
-import math
-import time
 
 import argparse
-import panda3d.core as p3d
-import direct.showbase.ShowBase as ShowBase
-import direct.interval.MopathInterval as MopathInterval
-import direct.gui as gui
-import meshtool.filters.panda_filters.pandacore as pcore
-import meshtool.filters.panda_filters.pandacontrols as controls
-import meshtool.filters.print_filters.print_pm_perceptual_error as percepfilter
 
 import pathmangle
-import katasked.scene as scene
-import katasked.motioncap as motioncap
-import katasked.panda
-import katasked.task.pool as pool
-import katasked.task.metadata as metadata
-import katasked.task.mesh as meshtask
-import katasked.task.texture as texturetask
-import katasked.task.refinement as refinementtask
-import katasked.pdae_updater as pdae_updater
 import katasked.loader as loader
+import katasked.cache as cache
 
 class FullSceneScreenshotLoader(loader.ProgressiveLoader):
     def __init__(self, scenefile, screenshot_dir):
@@ -62,6 +43,7 @@ def main():
                         help='Scene file to render.')
     parser.add_argument('--screenshot-dir', '-d', metavar='directory', required=True,
                         help='Directory where screenshots were dumped and will be dumped')
+    parser.add_argument('--cache-dir', metavar='directory', help='Directory to use for cache files')
     
     args = parser.parse_args()
     
@@ -71,6 +53,16 @@ def main():
             parser.error('Invalid screenshots directory: %s' % outdir)
         elif not os.path.exists(os.path.join(outdir, 'groundtruth')):
             os.makedirs(os.path.join(outdir, 'groundtruth'))
+    
+    cachedir = None
+    if args.cache_dir is not None:
+        cachedir = os.path.abspath(args.cache_dir)
+        if os.path.exists(cachedir) and not os.path.isdir(cachedir):
+            parser.error('Invalid cache directory: %s' % cachedir)
+        elif not os.path.exists(cachedir):
+            os.mkdir(cachedir)
+    
+    cache.init_cache(cachedir)
     
     app = FullSceneScreenshotLoader(args.scene, outdir)
     app.run()
