@@ -6,3 +6,4 @@ requests
 shove
 urllib3
 Cython
+clint
