@@ -1,6 +1,4 @@
-import heapq
 import multiprocessing
-import operator
 import time
 import collections
 import katasked.task.priority as priority
@@ -74,12 +72,11 @@ class TaskPool(object):
         if num_to_run < 1:
             return to_return
         
-        task_priorities = priority.calc_priority(pandastate, self.to_run)
-        largestN = heapq.nlargest(num_to_run, task_priorities.iteritems(), key=operator.itemgetter(1))
+        largestN = priority.get_highest_N(pandastate, self.to_run, num_to_run)
         
         self.last_action = now
         
-        for task, _ in largestN:
+        for task in largestN:
             self.sequence_map[task] = self.sequence_num
             print "==(%d)==>" % self.sequence_num, task
             self.sequence_num += 1

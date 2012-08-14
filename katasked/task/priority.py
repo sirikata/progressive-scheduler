@@ -1,5 +1,8 @@
 import math
+import heapq
+import operator
 import collections
+import random
 
 import panda3d.core as p3d
 
@@ -7,17 +10,60 @@ import katasked.task.base as taskbase
 
 MAX_SOLID_ANGLE = 4.0 * math.pi
 
+class PriorityAlgorithm(object):
+    def combine(self, metrics):
+        raise NotImplementedError()
+
+class SingleSolidAngle(PriorityAlgorithm):
+    def combine(self, metrics):
+        return metrics.solid_angle
+
+class SingleCameraAngle(PriorityAlgorithm):
+    def combine(self, metrics):
+        return metrics.camera_angle
+
+class SinglePerceptualError(PriorityAlgorithm):
+    def combine(self, metrics):
+        return metrics.perceptual_error
+
+class Random(PriorityAlgorithm):
+    def combine(self, metrics):
+        # note: not actually used because of optimization below using random.sample
+        raise NotImplementedError()
+        return random.random()
+
+class HandTuned1(PriorityAlgorithm):
+    def combine(self, metrics):
+        return metrics.solid_angle * 10000 + \
+                metrics.camera_angle * 1 + \
+                metrics.perceptual_error * 1
+
+PRIORITY_ALGORITHMS = [Random,
+                       SingleSolidAngle, SingleCameraAngle, SinglePerceptualError,
+                       HandTuned1]
+
+PRIORITY_ALGORITHM_NAMES = dict((a.__name__, a) for a in PRIORITY_ALGORITHMS)
+
+SELECTED_ALGORITHM = HandTuned1()
+
+def set_priority_algorithm(algorithm):
+    global SELECTED_ALGORITHM
+    SELECTED_ALGORITHM = algorithm
+
+def get_priority_algorithm_names():
+    return PRIORITY_ALGORITHM_NAMES.keys()
+
+def get_algorithm_by_name(name):
+    return PRIORITY_ALGORITHM_NAMES[name]
+
 class Metrics(object):
     def __init__(self):
         self.solid_angle = 0
         self.camera_angle = 0
         self.perceptual_error = 0
     
-    def combined(self):
-        # completely arbitrary weights
-        return self.solid_angle * 10000 + \
-                self.camera_angle * 1 + \
-                self.perceptual_error * 1
+    def combine(self):
+        return SELECTED_ALGORITHM.combine(self)
 
 def calc_priority(pandastate, tasks):
     task_modelslugs = dict((t.modelslug, t) for t in tasks)
@@ -76,10 +122,19 @@ def calc_priority(pandastate, tasks):
         task = task_modelslugs[model.slug]
         metrics = np_metrics[np]
         
-        combined_priority = metrics.combined()
+        combined_priority = metrics.combine()
         task_priorities[task] += combined_priority
         
         if isinstance(task, taskbase.DownloadTask):
             task_priorities[task] /= float(task.download_size)
     
     return task_priorities
+
+def get_highest_N(pandastate, tasks, N):
+    # optimization - don't bother calculating priority if it's random
+    if isinstance(SELECTED_ALGORITHM, Random):
+        return random.sample(tasks, N)
+    
+    task_priorities = calc_priority(pandastate, tasks)
+    largestN = heapq.nlargest(N, task_priorities.iteritems(), key=operator.itemgetter(1))
+    return [i[0] for i in largestN]

@@ -8,15 +8,19 @@ import argparse
 import pathmangle
 import katasked.loader as loader
 import katasked.cache as cache
+import katasked.task.priority as priority
 
 class FullSceneScreenshotLoader(loader.ProgressiveLoader):
-    def __init__(self, scenefile, screenshot_dir):
+    def __init__(self, scenefile, screenshot_dirs):
         loader.ProgressiveLoader.__init__(self, scenefile)
         
-        self.dumpdir = screenshot_dir
-        info_file = os.path.join(self.dumpdir, 'info.json')
-        with open(info_file, 'r') as f:
-            self.camera_points = json.load(f)
+        self.dumpdirs = screenshot_dirs
+        
+        self.camera_points = []
+        for dumpdir in self.dumpdirs:
+            info_file = os.path.join(dumpdir, 'info.json')
+            with open(info_file, 'r') as f:
+                self.camera_points.append(json.load(f))
     
     def run(self):
         self.render.hide()
@@ -26,29 +30,35 @@ class FullSceneScreenshotLoader(loader.ProgressiveLoader):
         
         self.render.show()
         
-        for camera_pt in self.camera_points:
-            fname = camera_pt['filename']
-            position = camera_pt['position']
-            hpr = camera_pt['hpr']
-            self.cam.setPosHpr(*(position + hpr))
-            
-            self.taskMgr.step()
-            self.taskMgr.step()
-            
-            self.win.saveScreenshot(os.path.join(self.dumpdir, 'groundtruth', fname))
+        for dumpdir, camera_points in zip(self.dumpdirs, self.camera_points):
+            print 'Dumping screenshots for directory %s...' % dumpdir
+            for camera_pt in camera_points:
+                fname = camera_pt['filename']
+                position = camera_pt['position']
+                hpr = camera_pt['hpr']
+                self.cam.setPosHpr(*(position + hpr))
+                
+                self.taskMgr.step()
+                self.taskMgr.step()
+                
+                self.win.saveScreenshot(os.path.join(dumpdir, 'groundtruth', fname))
 
 def main():
     parser = argparse.ArgumentParser(description='Fully loads a scene and then captures screenshots based on a previous run of loadscene.py')
     parser.add_argument('--scene', '-s', metavar='scene.json', type=argparse.FileType('r'), required=True,
                         help='Scene file to render.')
-    parser.add_argument('--screenshot-dir', '-d', metavar='directory', required=True,
+    parser.add_argument('--screenshot-dir', '-d', metavar='directory', required=True, action='append',
                         help='Directory where screenshots were dumped and will be dumped')
     parser.add_argument('--cache-dir', metavar='directory', help='Directory to use for cache files')
+    parser.add_argument('--priority-algorithm', choices=priority.get_priority_algorithm_names(),
+                        help='The algorithm used for prioritizing tasks')
     
     args = parser.parse_args()
-    
-    if args.screenshot_dir is not None:
-        outdir = os.path.abspath(args.screenshot_dir)
+
+    screenshot_dirs = []
+    for outdir in args.screenshot_dir:
+        outdir = os.path.abspath(outdir)
+        screenshot_dirs.append(outdir)
         if os.path.exists(outdir) and not os.path.isdir(outdir):
             parser.error('Invalid screenshots directory: %s' % outdir)
         elif not os.path.exists(os.path.join(outdir, 'groundtruth')):
@@ -64,7 +74,11 @@ def main():
     
     cache.init_cache(cachedir)
     
-    app = FullSceneScreenshotLoader(args.scene, outdir)
+    if args.priority_algorithm is not None:
+        algorithm = priority.get_algorithm_by_name(args.priority_algorithm)
+        priority.set_priority_algorithm(algorithm())
+    
+    app = FullSceneScreenshotLoader(args.scene, screenshot_dirs)
     app.run()
 
 if __name__ == '__main__':
