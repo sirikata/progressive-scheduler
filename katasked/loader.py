@@ -8,6 +8,7 @@ import math
 import time
 
 import panda3d.core as p3d
+from pandac.PandaModules import SmoothMover
 import direct.showbase.ShowBase as ShowBase
 import direct.interval.MopathInterval as MopathInterval
 import direct.gui as gui
@@ -108,8 +109,6 @@ class ProgressiveLoader(ShowBase.ShowBase):
         self.models_loaded = set()
         self.loading_priority = 2147483647
         
-        self.pandastate = katasked.panda.PandaState(self.cam, self.unique_nodepaths, self.nodepaths)
-        
         for m in self.unique_models:
             t = metadata.MetadataDownloadTask(m)
             self.multiplexer.add_task(t)
@@ -147,6 +146,21 @@ class ProgressiveLoader(ShowBase.ShowBase):
             
             self.update_stats()
         
+        self.globalClock = p3d.ClockObject.getGlobalClock()
+        
+        self.smooth_mover = SmoothMover()
+        self.smooth_mover.setPredictionMode(SmoothMover.PMOn)
+        self.smooth_mover.setSmoothMode(SmoothMover.SMOn)
+        self.smooth_mover.setMaxPositionAge(10.0)
+        self.smooth_mover.setAcceptClockSkew(False)
+        self.smooth_mover.setDelay(0)
+        
+        self.pandastate = katasked.panda.PandaState(self.cam,
+                                                    self.unique_nodepaths,
+                                                    self.nodepaths,
+                                                    self.smooth_mover,
+                                                    self.globalClock)
+        
         if self.capturefile is not None:
             self.capturedata = json.load(self.capturefile)
             self.duration = self.capturedata['duration']
@@ -163,6 +177,7 @@ class ProgressiveLoader(ShowBase.ShowBase):
             controls.KeyboardMovement()
             controls.MouseCamera()
         
+        self.update_camera_predictor_task = self.taskMgr.doMethodLater(0.1, self.update_camera_predictor, 'update_camera_predictor')
         self.update_priority_task = self.taskMgr.doMethodLater(0.5, self.check_pool, 'check_pool')
         self.load_waiting_task = self.taskMgr.doMethodLater(0.1, self.load_waiting, 'load_waiting')
         
@@ -177,7 +192,16 @@ class ProgressiveLoader(ShowBase.ShowBase):
             self.taskMgr.doMethodLater(self.duration + 2.0, self.finished, 'exiter')
         
         ShowBase.ShowBase.run(self)
+    
+    def update_camera_predictor(self, task):
+        curtime = self.globalClock.getFrameTime()
+        self.smooth_mover.setPos(self.cam.getPos())
+        self.smooth_mover.setHpr(self.cam.getHpr())
+        self.smooth_mover.setTimestamp(curtime)
+        self.smooth_mover.markPosition()
         
+        return task.again
+    
     def check_pool(self, task):
         t0 = time.time()
         finished_tasks = self.multiplexer.poll(self.pandastate)
@@ -288,11 +312,11 @@ class ProgressiveLoader(ShowBase.ShowBase):
 
     def trigger_screenshot(self, task):
         if self.start_time is None:
-            self.start_time = p3d.ClockObject.getGlobalClock().getLongTime()
+            self.start_time = self.globalClock.getLongTime()
             task.delayTime = 1.0
             return task.again
         
-        run_time = p3d.ClockObject.getGlobalClock().getLongTime() - self.start_time
+        run_time = self.globalClock.getLongTime() - self.start_time
         fname = ('%07.2f' % run_time) + '.png'
         self.screenshot_info.append({'filename': fname,
                                      'position': list(self.cam.getPos()),

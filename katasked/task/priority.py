@@ -18,9 +18,17 @@ class SingleSolidAngle(PriorityAlgorithm):
     def combine(self, metrics):
         return metrics.solid_angle
 
+class SingleFuture5SolidAngle(PriorityAlgorithm):
+    def combine(self, metrics):
+        return metrics.future_5_solid_angle
+
 class SingleCameraAngle(PriorityAlgorithm):
     def combine(self, metrics):
         return metrics.camera_angle
+
+class SingleFuture5CameraAngle(PriorityAlgorithm):
+    def combine(self, metrics):
+        return metrics.future_5_camera_angle
 
 class SinglePerceptualError(PriorityAlgorithm):
     def combine(self, metrics):
@@ -34,13 +42,24 @@ class Random(PriorityAlgorithm):
 
 class HandTuned1(PriorityAlgorithm):
     def combine(self, metrics):
-        return metrics.solid_angle * 10000 + \
-                metrics.camera_angle * 1 + \
+        return metrics.solid_angle * 2000 + \
+                metrics.future_5_solid_angle * 8000 + \
+                metrics.camera_angle * 0.5 + \
+                metrics.future_5_camera_angle * 1.5 + \
                 metrics.perceptual_error * 1
+
+class HandTuned2(PriorityAlgorithm):
+    def combine(self, metrics):
+        return metrics.solid_angle * \
+                metrics.future_5_solid_angle * \
+                metrics.camera_angle * \
+                metrics.future_5_camera_angle * \
+                metrics.perceptual_error
 
 PRIORITY_ALGORITHMS = [Random,
                        SingleSolidAngle, SingleCameraAngle, SinglePerceptualError,
-                       HandTuned1]
+                       SingleFuture5SolidAngle, SingleFuture5CameraAngle,
+                       HandTuned1, HandTuned2]
 
 PRIORITY_ALGORITHM_NAMES = dict((a.__name__, a) for a in PRIORITY_ALGORITHMS)
 
@@ -59,11 +78,34 @@ def get_algorithm_by_name(name):
 class Metrics(object):
     def __init__(self):
         self.solid_angle = 0
+        self.future_5_solid_angle = 0
         self.camera_angle = 0
+        self.future_5_camera_angle = 0
         self.perceptual_error = 0
     
     def combine(self):
         return SELECTED_ALGORITHM.combine(self)
+
+def calc_solid_angle(camera_pos, np):
+    to_center = camera_pos - np.getPos()
+    to_center_len = to_center.length()
+    np_radius = np.getScale()[0]
+    
+    if to_center_len <= np_radius:
+        solid_angle = MAX_SOLID_ANGLE
+    else:
+        sin_alpha = np_radius / to_center_len
+        cos_alpha = math.sqrt(1.0 - sin_alpha * sin_alpha)
+        solid_angle = 2.0 * math.pi * (1.0 - cos_alpha)
+    
+    return solid_angle / MAX_SOLID_ANGLE
+
+def calc_camera_angle(camera_np, camera_forward, np):
+    camera_np.lookAt(np.getPos())
+    copied_forward = camera_np.getQuat().getForward()
+    copied_forward.normalize()
+    angle_change = copied_forward.angleDeg(camera_forward)
+    return 1.0 - (angle_change / 360.0)
 
 def calc_priority(pandastate, tasks):
     task_modelslugs = dict((t.modelslug, t) for t in tasks)
@@ -80,38 +122,33 @@ def calc_priority(pandastate, tasks):
     
     # needed for solid angle
     camera_pos = pandastate.camera.getPos()
+    curtime = pandastate.globalClock.getFrameTime()
+    pandastate.camera_smoother.computeSmoothPosition(curtime + 5)
+    camera_pos_future_5 = pandastate.camera_smoother.getSmoothPos()
     
     # needed for camera angle
-    copied_np = p3d.NodePath("tempnode")
+    copied_camera = p3d.NodePath("tempnode1")
     camera_quat = pandastate.camera.getQuat()
-    copied_np.setQuat(camera_quat)
-    copied_np.setPos(camera_pos)
+    copied_camera.setQuat(camera_quat)
+    copied_camera.setPos(camera_pos)
     camera_forward = camera_quat.getForward()
     camera_forward.normalize()
+    
+    copied_camera_future_5 = p3d.NodePath("tempnode2")
+    pandastate.camera_smoother.applySmoothPosHpr(copied_camera_future_5, copied_camera_future_5)
+    camera_quat_future_5 = copied_camera_future_5.getQuat()
+    camera_forward_future_5 = camera_quat_future_5.getForward()
+    camera_forward_future_5.normalize()
     
     for np, metrics in np_metrics.iteritems():
         
         # calc solid angle
-        to_center = camera_pos - np.getPos()
-        to_center_len = to_center.length()
-        np_radius = np.getScale()[0]
-        
-        if to_center_len <= np_radius:
-            solid_angle = MAX_SOLID_ANGLE
-        else:
-            sin_alpha = np_radius / to_center_len
-            cos_alpha = math.sqrt(1.0 - sin_alpha * sin_alpha)
-            solid_angle = 2.0 * math.pi * (1.0 - cos_alpha)
-        
-        metrics.solid_angle = solid_angle / MAX_SOLID_ANGLE
-        
+        metrics.solid_angle = calc_solid_angle(camera_pos, np)
+        metrics.future_5_solid_angle = calc_solid_angle(camera_pos_future_5, np)
         
         # calc angle between camera and object
-        copied_np.lookAt(np.getPos())
-        copied_forward = copied_np.getQuat().getForward()
-        copied_forward.normalize()
-        angle_change = copied_forward.angleDeg(camera_forward)
-        metrics.camera_angle = 1.0 - (angle_change / 360.0)
+        metrics.camera_angle = calc_camera_angle(copied_camera, camera_forward, np)
+        metrics.future_5_camera_angle = calc_camera_angle(copied_camera_future_5, camera_forward_future_5, np)
     
     # combine metrics together
     task_priorities = collections.defaultdict(float)
