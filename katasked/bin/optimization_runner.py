@@ -82,55 +82,64 @@ def main():
         
         if not os.path.isfile(iteration_info_fname):
             
-            try:
+            trial_means = []
+            for trial_num in range(3):
                 
-                print 'guessing:', ', '.join('%s:%f' % (k,v) for k,v in new_guess.iteritems())
+                trial_expdir = os.path.join(expdir, 'trial_%d' % trial_num)
+                if not os.path.isdir(trial_expdir):
+                    os.mkdir(trial_expdir)
                 
-                with open(temp_json_fname, 'w') as f:
-                    json.dump(new_guess, f)
-                
-                call([LOADSCENE,
-                     '--capture', motioncap_file,
-                     '--scene', scene_file,
-                     '--dump-screenshot', expdir,
-                     '--cache-dir', tempdir,
-                     '--priority-algorithm', 'FromFile',
-                     '--priority-input', temp_json_fname])
-            
-            finally:
                 try:
-                    os.remove(temp_json_fname)
-                except OSError:
-                    pass
+                    
+                    print 'guessing:', ', '.join('%s:%f' % (k,v) for k,v in new_guess.iteritems())
+                    
+                    with open(temp_json_fname, 'w') as f:
+                        json.dump(new_guess, f)
+                    
+                    call([LOADSCENE,
+                         '--capture', motioncap_file,
+                         '--scene', scene_file,
+                         '--dump-screenshot', trial_expdir,
+                         '--cache-dir', tempdir,
+                         '--priority-algorithm', 'FromFile',
+                         '--priority-input', temp_json_fname])
                 
-                shutil.rmtree(tempdir, ignore_errors=True)
-    
-            call([FULLSCENE_SCREENSHOTTER,
-                  '--scene', scene_file,
-                  '--cache-dir', fullcache_dir,
-                  '--priority-algorithm', 'Random',
-                  '-d', expdir])
-            
-            call([PERCEPTUAL_DIFFER,
-                  '-d', expdir])
-            
-            perceptual_diff_file = os.path.join(expdir, 'perceptualdiff.json')
-            with open(perceptual_diff_file, 'r') as f:
-                perceptual_data = json.load(f)
-            
-            times = []
-            errors = []
-            for fdata in perceptual_data:
-                errors.append(fdata['perceptualdiff'])
-                times.append(float('.'.join(fdata['filename'].split('.')[:2])))
-            
-            times = numpy.array(times)
-            errors = numpy.array(errors)
-            diffs = numpy.ediff1d(times, to_begin=times[0] - 0)
-            mean = numpy.sum(errors * diffs) / times[-1]
-            
+                finally:
+                    try:
+                        os.remove(temp_json_fname)
+                    except OSError:
+                        pass
+                    
+                    shutil.rmtree(tempdir, ignore_errors=True)
+        
+                call([FULLSCENE_SCREENSHOTTER,
+                      '--scene', scene_file,
+                      '--cache-dir', fullcache_dir,
+                      '--priority-algorithm', 'Random',
+                      '-d', trial_expdir])
+                
+                call([PERCEPTUAL_DIFFER,
+                      '-d', trial_expdir])
+                
+                perceptual_diff_file = os.path.join(trial_expdir, 'perceptualdiff.json')
+                with open(perceptual_diff_file, 'r') as f:
+                    perceptual_data = json.load(f)
+                
+                times = []
+                errors = []
+                for fdata in perceptual_data:
+                    errors.append(fdata['perceptualdiff'])
+                    times.append(float('.'.join(fdata['filename'].split('.')[:2])))
+                
+                times = numpy.array(times)
+                errors = numpy.array(errors)
+                diffs = numpy.ediff1d(times, to_begin=times[0] - 0)
+                mean = numpy.sum(errors * diffs) / times[-1]
+                trial_means.append(mean)
+                
             with open(iteration_info_fname, 'w') as f:
-                json.dump({'mean': mean,
+                json.dump({'means': trial_means,
+                           'mean': sum(trial_means) / float(len(trial_means)),
                            'inputs': new_guess}, f, indent=2)
         
         with open(iteration_info_fname, 'r') as f:
