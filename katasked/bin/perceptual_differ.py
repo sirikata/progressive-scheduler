@@ -24,16 +24,16 @@ def main():
     for d in args.screenshot_dir:
         d = os.path.abspath(d)
         
-        realtime_files = sorted(os.listdir(os.path.join(d, 'realtime')))
-        groundtruth_files = sorted(os.listdir(os.path.join(d, 'groundtruth')))
+        info_fname = os.path.join(d, 'info.json')
+        with open(info_fname, 'r') as f:
+            ss_info = json.load(f)
         
-        assert len(realtime_files) == len(groundtruth_files)
-        
+        filenames = [ss['filename'] for ss in ss_info]
         file_errors = []
         
-        for realtime_file, groundtruth_file in progress.bar(zip(realtime_files, groundtruth_files), label='Processing directory %s...' % d):
-            realtime_file = os.path.join(d, 'realtime', realtime_file)
-            groundtruth_file = os.path.join(d, 'groundtruth', groundtruth_file)
+        for fname in progress.bar(filenames, label='Processing directory %s...' % d):
+            realtime_file = os.path.join(d, 'realtime', fname)
+            groundtruth_file = os.path.join(d, 'groundtruth', fname)
             
             try:
                 output = subprocess.check_output([perceptualdiff, '-threshold', '1', realtime_file, groundtruth_file], stderr=subprocess.STDOUT)
