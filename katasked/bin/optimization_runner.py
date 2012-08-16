@@ -84,7 +84,7 @@ def main():
             
             try:
                 
-                print 'guessing:', ', '.join('%s:%.7g' % (k,v) for k,v in new_guess.iteritems())
+                print 'guessing:', ', '.join('%s:%f' % (k,v) for k,v in new_guess.iteritems())
                 
                 with open(temp_json_fname, 'w') as f:
                     json.dump(new_guess, f)
