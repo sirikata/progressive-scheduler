@@ -21,6 +21,8 @@ def main():
     parser.add_argument('--cache-dir', metavar='directory', help='Directory to use for cache files')
     parser.add_argument('--priority-algorithm', choices=priority.get_priority_algorithm_names(),
                         help='The algorithm used for prioritizing tasks')
+    parser.add_argument('--priority-input', metavar='vars.json', type=argparse.FileType('r'),
+                        help='Input file for priority algorithm if chosen type is FromFile')
     
     args = parser.parse_args()
     
@@ -44,7 +46,14 @@ def main():
     
     if args.priority_algorithm is not None:
         algorithm = priority.get_algorithm_by_name(args.priority_algorithm)
-        priority.set_priority_algorithm(algorithm())
+        
+        algo_inputs = []
+        if issubclass(algorithm, priority.FromFile):
+            if args.priority_input is None:
+                parser.error("An input file must be specified for FromFile priority algorithm")
+            algo_inputs = [args.priority_input]
+        
+        priority.set_priority_algorithm(algorithm(*algo_inputs))
     
     app = loader.ProgressiveLoader(args.scene,
                                    capturefile=args.capture,

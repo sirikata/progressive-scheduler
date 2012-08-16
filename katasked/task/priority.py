@@ -1,5 +1,6 @@
 import math
 import heapq
+import json
 import operator
 import collections
 import random
@@ -56,9 +57,26 @@ class HandTuned2(PriorityAlgorithm):
                 metrics.future_5_camera_angle * \
                 metrics.perceptual_error
 
+class FromFile(PriorityAlgorithm):
+    def __init__(self, fbuf):
+        self.w = json.load(fbuf)
+        assert isinstance(self.w['solid_angle'], float)
+        assert isinstance(self.w['future_5_solid_angle'], float)
+        assert isinstance(self.w['camera_angle'], float)
+        assert isinstance(self.w['future_5_camera_angle'], float)
+        assert isinstance(self.w['perceptual_error'], float)
+    
+    def combine(self, metrics):
+        return metrics.solid_angle * self.w['solid_angle'] + \
+                metrics.future_5_solid_angle * self.w['future_5_solid_angle'] + \
+                metrics.camera_angle * self.w['camera_angle'] + \
+                metrics.future_5_camera_angle * self.w['future_5_camera_angle'] + \
+                metrics.perceptual_error * self.w['perceptual_error']
+
 PRIORITY_ALGORITHMS = [Random,
                        SingleSolidAngle, SingleCameraAngle, SinglePerceptualError,
                        SingleFuture5SolidAngle, SingleFuture5CameraAngle,
+                       FromFile,
                        HandTuned1, HandTuned2]
 
 PRIORITY_ALGORITHM_NAMES = dict((a.__name__, a) for a in PRIORITY_ALGORITHMS)
