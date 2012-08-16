@@ -7,3 +7,5 @@ shove
 urllib3
 Cython
 clint
+numpy
+scipy

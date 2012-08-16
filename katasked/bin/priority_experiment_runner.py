@@ -18,8 +18,8 @@ FULLSCENE_SCREENSHOTTER = os.path.join(CURDIR, 'fullscene_screenshotter.py')
 PERCEPTUAL_DIFFER = os.path.join(CURDIR, 'perceptual_differ.py')
 
 def main():
-    parser = argparse.ArgumentParser(description=('Runs an experiment for each priority algorithm registered, generating screenshots ',
-                                                  'for each. Then runs fullscene_screenshotter to capture the ground truth. Then runs ',
+    parser = argparse.ArgumentParser(description=('Runs an experiment for each priority algorithm registered, generating screenshots '
+                                                  'for each. Then runs fullscene_screenshotter to capture the ground truth. Then runs '
                                                   'perceptual_differ to generate result data.'))
     parser.add_argument('--screenshot-dir', metavar='directory', required=True,
                         help='Root directory where screenshot subdirectories will be created')
