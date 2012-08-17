@@ -44,6 +44,17 @@ class Cache(object):
         if not os.path.isfile(cachefile):
             open3dhub._load_into_bamfile(cachefile, meshdata, boundsInfo, subfiles, modelslug)
         return cachefile
+    
+    def is_bam_cached(self, key):
+        cachefile = os.path.join(self.bamdata_cache_file, key)
+        return os.path.isfile(cachefile)
+    
+    def add_bam(self, key, np):
+        cachefile = os.path.join(self.bamdata_cache_file, key)
+        np.writeBamFile(cachefile)
+    
+    def get_bam_file(self, key):
+        return os.path.join(self.bamdata_cache_file, key)
 
 _cache = None
 
@@ -65,3 +76,18 @@ def cache_bam_wrap(*args, **kwargs):
     if _cache is None:
         init_cache()
     return _cache.cache_bam_wrap(*args, **kwargs)
+
+def is_bam_cached(key):
+    if _cache is None:
+        init_cache()
+    return _cache.is_bam_cached(key)
+
+def add_bam(key, np):
+    if _cache is None:
+        init_cache()
+    return _cache.add_bam(key, np)
+
+def get_bam_file(key):
+    if _cache is None:
+        init_cache()
+    return _cache.get_bam_file(key)
