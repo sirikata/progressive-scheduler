@@ -1,6 +1,7 @@
 import os
 import shove
 import open3dhub
+import util
 
 class Cache(object):
     def __init__(self, cache_dir=None):
@@ -9,15 +10,26 @@ class Cache(object):
         self.cache_dir = cache_dir
 
         self.metadata_cache_file = os.path.join(self.cache_dir, '.cache')
-        self.metadata_shover = shove.Shove(store='file://' + self.metadata_cache_file, compress=True, sync=1)
+        self.metadata_shover = shove.Shove(store='file://' + self.metadata_cache_file,
+                                           cache='simplelru://',
+                                           compress=True, sync=1)
         
         self.hashdata_cache_file = os.path.join(self.cache_dir, '.hash-cache')
-        self.hashdata_shover = shove.Shove(store='file://' + self.hashdata_cache_file, compress=True, sync=1)
+        self.hashdata_shover = shove.Shove(store='file://' + self.hashdata_cache_file,
+                                           cache='simplelru://',
+                                           compress=True, sync=1)
         
         self.bamdata_cache_file = os.path.join(self.cache_dir, '.bam-cache')
         if not os.path.isdir(self.bamdata_cache_file):
             os.mkdir(self.bamdata_cache_file)
 
+    # Sometimes this exception gets thrown:
+    #   RuntimeError: dictionary changed size during iteration
+    # It happens because the shove file:// store is NOT mult-process
+    # safe. Since we can't change that, just mask the error that happens
+    # infrequently and try it again. The proability of it happening 4
+    # times in a row is low enough that it's safe(ish).
+    @util.retry(RuntimeError, 4, 1, 2)
     def _cache_wrap(self, shover, key, func, *args, **kwargs):
         def _getkey():
             if key not in shover:
