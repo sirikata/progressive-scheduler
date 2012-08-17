@@ -58,7 +58,6 @@ class FullSceneScreenshotLoader(loader.ProgressiveLoader):
             for modelslug, np in self.unique_nodepaths.iteritems():
                 key = "%s_full.bam" % modelslug
                 print 'adding full cache', key
-                np.ls()
                 cache.add_bam(key, np)
         
         for dumpdir, camera_points in zip(self.dumpdirs, self.camera_points):
