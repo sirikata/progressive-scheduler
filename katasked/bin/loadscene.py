@@ -8,6 +8,7 @@ import pathmangle
 import katasked.loader as loader
 import katasked.cache as cache
 import katasked.task.priority as priority
+import katasked.open3dhub as open3dhub
 
 def main():
     parser = argparse.ArgumentParser(description='Progressively loads a scene')
@@ -23,6 +24,7 @@ def main():
                         help='The algorithm used for prioritizing tasks')
     parser.add_argument('--priority-input', metavar='vars.json', type=argparse.FileType('r'),
                         help='Input file for priority algorithm if chosen type is FromFile')
+    parser.add_argument('--cdn-domain', metavar='example.com')
     
     args = parser.parse_args()
     
@@ -54,6 +56,9 @@ def main():
             algo_inputs = [args.priority_input]
         
         priority.set_priority_algorithm(algorithm(*algo_inputs))
+    
+    if args.cdn_domain is not None:
+        open3dhub.set_cdn_domain(args.cdn_domain)
     
     app = loader.ProgressiveLoader(args.scene,
                                    capturefile=args.capture,

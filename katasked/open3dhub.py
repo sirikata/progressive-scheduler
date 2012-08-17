@@ -16,13 +16,13 @@ import cache
 import panda
 import util
 
-BASE_URL = 'http://open3dhub.com'
-# 'http://singular.stanford.edu'
-BROWSE_URL = BASE_URL + '/api/browse'
-DOWNLOAD_URL = BASE_URL + '/download'
-DNS_URL = BASE_URL + '/dns'
-MODELINFO_URL = BASE_URL + '/api/modelinfo/%(path)s'
-SEARCH_URL = BASE_URL + '/api/search?q=%(q)s&start=%(start)d&rows=%(rows)d'
+BASE_DOMAIN = None
+BASE_URL = None
+BROWSE_URL = None
+DOWNLOAD_URL = None
+DNS_URL = None
+MODELINFO_URL = None
+SEARCH_URL = None
 
 PANDA3D = False
 
@@ -34,6 +34,20 @@ TEMPDIR = os.path.join(CURDIR, '.temp_models')
 def _get_session():
     return requests.session(timeout=6)
 REQUESTS_SESSION = _get_session()
+
+def set_cdn_domain(domain):
+    global BASE_DOMAIN, BASE_URL, BROWSE_URL, DOWNLOAD_URL, \
+            DNS_URL, MODELINFO_URL, SEARCH_URL
+
+    BASE_DOMAIN = domain
+    BASE_URL = 'http://%s' % BASE_DOMAIN
+    BROWSE_URL = BASE_URL + '/api/browse'
+    DOWNLOAD_URL = BASE_URL + '/download'
+    DNS_URL = BASE_URL + '/dns'
+    MODELINFO_URL = BASE_URL + '/api/modelinfo/%(path)s'
+    SEARCH_URL = BASE_URL + '/api/search?q=%(q)s&start=%(start)d&rows=%(rows)d'
+
+set_cdn_domain('open3dhub.com')
 
 class PathInfo(object):
     """Helper class for dealing with CDN paths"""
@@ -71,7 +85,7 @@ class PathInfo(object):
         return str(self)
 
 # this will retry 4 times with exponential backoff: 1 second, 2, 4, 8
-@util.retry((requests.HTTPError, requests.Timeout), 4, 1, 2)
+@util.retry((requests.HTTPError, requests.Timeout, requests.ConnectionError), 4, 1, 2)
 def urlfetch(url, httprange=None):
     """Fetches the given URL and returns data from it.
     Will take care of gzip if enabled on server."""
@@ -104,10 +118,16 @@ def json_fetch(url):
 
 def hashfetch(dlhash, httprange=None):
     key = 'HASH_' + dlhash
+    url = DOWNLOAD_URL + '/' + dlhash
     if httprange is not None:
         offset, length = httprange
         key += "_%d_%d" % (offset, length)
-    return cache.cache_data_wrap(key, urlfetch, DOWNLOAD_URL + '/' + dlhash, httprange=httprange)
+        url += "?start=%d&end=%d" % (offset, offset+length-1)
+    data = cache.cache_data_wrap(key, urlfetch, url)
+    if httprange is not None and len(data) != length:
+        print 'GOT INCORRECT LENGTH', key, dlhash, httprange, len(data)
+        assert len(data) == length
+    return data
 
 def get_subfile_hash(subfile_path):
     subfile_url = DNS_URL + subfile_path
