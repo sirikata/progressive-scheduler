@@ -90,8 +90,6 @@ def main():
                     
                 finally:
                     shutil.rmtree(tempdir, ignore_errors=True)
-        
-        break
     
     
     command = [FULLSCENE_SCREENSHOTTER,
