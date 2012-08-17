@@ -19,6 +19,10 @@ class SingleSolidAngle(PriorityAlgorithm):
     def combine(self, metrics):
         return metrics.solid_angle
 
+class SingleFuture2SolidAngle(PriorityAlgorithm):
+    def combine(self, metrics):
+        return metrics.future_2_solid_angle
+
 class SingleFuture5SolidAngle(PriorityAlgorithm):
     def combine(self, metrics):
         return metrics.future_5_solid_angle
@@ -26,6 +30,10 @@ class SingleFuture5SolidAngle(PriorityAlgorithm):
 class SingleCameraAngle(PriorityAlgorithm):
     def combine(self, metrics):
         return metrics.camera_angle
+
+class SingleFuture2CameraAngle(PriorityAlgorithm):
+    def combine(self, metrics):
+        return metrics.future_2_camera_angle
 
 class SingleFuture5CameraAngle(PriorityAlgorithm):
     def combine(self, metrics):
@@ -44,16 +52,20 @@ class Random(PriorityAlgorithm):
 class HandTuned1(PriorityAlgorithm):
     def combine(self, metrics):
         return metrics.solid_angle * 2000 + \
-                metrics.future_5_solid_angle * 8000 + \
+                metrics.future_2_solid_angle * 4000 + \
+                metrics.future_5_solid_angle * 4000 + \
                 metrics.camera_angle * 0.5 + \
-                metrics.future_5_camera_angle * 1.5 + \
+                metrics.future_2_camera_angle * 0.75 + \
+                metrics.future_5_camera_angle * 0.75 + \
                 metrics.perceptual_error * 1
 
 class HandTuned2(PriorityAlgorithm):
     def combine(self, metrics):
         return metrics.solid_angle * \
+                metrics.future_2_solid_angle * \
                 metrics.future_5_solid_angle * \
                 metrics.camera_angle * \
+                metrics.future_2_camera_angle * \
                 metrics.future_5_camera_angle * \
                 metrics.perceptual_error
 
@@ -61,20 +73,25 @@ class FromFile(PriorityAlgorithm):
     def __init__(self, fbuf):
         self.w = json.load(fbuf)
         assert isinstance(self.w['solid_angle'], float)
+        assert isinstance(self.w['future_2_solid_angle'], float)
         assert isinstance(self.w['future_5_solid_angle'], float)
         assert isinstance(self.w['camera_angle'], float)
+        assert isinstance(self.w['future_2_camera_angle'], float)
         assert isinstance(self.w['future_5_camera_angle'], float)
         assert isinstance(self.w['perceptual_error'], float)
     
     def combine(self, metrics):
         return metrics.solid_angle * self.w['solid_angle'] + \
+                metrics.future_2_solid_angle * self.w['future_2_solid_angle'] + \
                 metrics.future_5_solid_angle * self.w['future_5_solid_angle'] + \
                 metrics.camera_angle * self.w['camera_angle'] + \
+                metrics.future_2_camera_angle * self.w['future_2_camera_angle'] + \
                 metrics.future_5_camera_angle * self.w['future_5_camera_angle'] + \
                 metrics.perceptual_error * self.w['perceptual_error']
 
 PRIORITY_ALGORITHMS = [Random,
                        SingleSolidAngle, SingleCameraAngle, SinglePerceptualError,
+                       SingleFuture2SolidAngle, SingleFuture2CameraAngle,
                        SingleFuture5SolidAngle, SingleFuture5CameraAngle,
                        FromFile,
                        HandTuned1, HandTuned2]
@@ -96,8 +113,10 @@ def get_algorithm_by_name(name):
 class Metrics(object):
     def __init__(self):
         self.solid_angle = 0
+        self.future_2_solid_angle = 0
         self.future_5_solid_angle = 0
         self.camera_angle = 0
+        self.future_2_camera_angle = 0
         self.future_5_camera_angle = 0
         self.perceptual_error = 0
     
@@ -141,6 +160,8 @@ def calc_priority(pandastate, tasks):
     # needed for solid angle
     camera_pos = pandastate.camera.getPos()
     curtime = pandastate.globalClock.getFrameTime()
+    pandastate.camera_smoother.computeSmoothPosition(curtime + 2)
+    camera_pos_future_2 = pandastate.camera_smoother.getSmoothPos()
     pandastate.camera_smoother.computeSmoothPosition(curtime + 5)
     camera_pos_future_5 = pandastate.camera_smoother.getSmoothPos()
     
@@ -152,6 +173,12 @@ def calc_priority(pandastate, tasks):
     camera_forward = camera_quat.getForward()
     camera_forward.normalize()
     
+    copied_camera_future_2 = p3d.NodePath("tempnode2")
+    pandastate.camera_smoother.applySmoothPosHpr(copied_camera_future_2, copied_camera_future_2)
+    camera_quat_future_2 = copied_camera_future_2.getQuat()
+    camera_forward_future_2 = camera_quat_future_2.getForward()
+    camera_forward_future_2.normalize()
+    
     copied_camera_future_5 = p3d.NodePath("tempnode2")
     pandastate.camera_smoother.applySmoothPosHpr(copied_camera_future_5, copied_camera_future_5)
     camera_quat_future_5 = copied_camera_future_5.getQuat()
@@ -162,10 +189,12 @@ def calc_priority(pandastate, tasks):
         
         # calc solid angle
         metrics.solid_angle = calc_solid_angle(camera_pos, np)
+        metrics.future_2_solid_angle = calc_solid_angle(camera_pos_future_2, np)
         metrics.future_5_solid_angle = calc_solid_angle(camera_pos_future_5, np)
         
         # calc angle between camera and object
         metrics.camera_angle = calc_camera_angle(copied_camera, camera_forward, np)
+        metrics.future_2_camera_angle = calc_camera_angle(copied_camera_future_2, camera_forward_future_2, np)
         metrics.future_5_camera_angle = calc_camera_angle(copied_camera_future_5, camera_forward_future_5, np)
     
     # combine metrics together
