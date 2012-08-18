@@ -71,7 +71,7 @@ def main():
                 
                 if os.path.exists(os.path.join(expdir, 'info.json')):
                     num_screenshots = len(json.loads(open(os.path.join(expdir, 'info.json'), 'r').read()))
-                    if num_screenshots >= 0.8 * motioncap_duration:
+                    if num_screenshots >= 0.7 * motioncap_duration:
                         print 'Skipping loadscene for', expdir
                         continue
                     else:
