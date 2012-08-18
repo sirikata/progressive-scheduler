@@ -118,20 +118,23 @@ def main():
     if args.cdn_domain is not None:
         command.extend(['--cdn-domain', args.cdn_domain])
     
-    for expdir in expdirs:
-        realtime_files = set(os.listdir(os.path.join(expdir, 'realtime')))
-        try:
-            groundtruth_files = set(os.listdir(os.path.join(expdir, 'groundtruth')))
-        except OSError:
-            groundtruth_files = set()
-        
-        if realtime_files == groundtruth_files:
-            print 'Skipping fullscene_screenshotter for', expdir
-            continue
-        
-        command.extend(['-d', expdir])
+    retcode = -1
     
-    call(command)
+    while retcode != 0:
+        for expdir in expdirs:
+            realtime_files = set(os.listdir(os.path.join(expdir, 'realtime')))
+            try:
+                groundtruth_files = set(os.listdir(os.path.join(expdir, 'groundtruth')))
+            except OSError:
+                groundtruth_files = set()
+            
+            if realtime_files == groundtruth_files:
+                print 'Skipping fullscene_screenshotter for', expdir
+                continue
+            
+            command.extend(['-d', expdir])
+        
+        retcode = call(command)
     
     
     command = [PERCEPTUAL_DIFFER]

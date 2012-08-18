@@ -66,6 +66,8 @@ class FullSceneScreenshotLoader(loader.ProgressiveLoader):
                 fname = camera_pt['filename']
                 position = camera_pt['position']
                 hpr = camera_pt['hpr']
+                
+                print '  ', fname, position, hpr
                 self.cam.setPosHpr(*(position + hpr))
                 
                 self.taskMgr.step()
