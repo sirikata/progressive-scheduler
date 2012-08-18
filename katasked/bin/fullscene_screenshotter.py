@@ -2,6 +2,7 @@
 
 import os
 import json
+import collections
 
 import argparse
 from clint.textui import progress
@@ -62,18 +63,26 @@ class FullSceneScreenshotLoader(loader.ProgressiveLoader):
         
         for dumpdir, camera_points in zip(self.dumpdirs, self.camera_points):
             print 'Dumping screenshots for directory %s...' % dumpdir
+            
+            unique_pt_map = collections.defaultdict(list)
             for camera_pt in camera_points:
                 fname = camera_pt['filename']
                 position = camera_pt['position']
                 hpr = camera_pt['hpr']
                 
-                print '  ', fname, position, hpr
+                poshpr = tuple(position + hpr)
+                unique_pt_map[poshpr].append(fname)
+                
+            for poshpr, filenames in unique_pt_map.iteritems():
+                print '  ', poshpr
                 self.cam.setPosHpr(*(position + hpr))
                 
                 self.taskMgr.step()
                 self.taskMgr.step()
                 
-                self.win.saveScreenshot(os.path.join(dumpdir, 'groundtruth', fname))
+                for fname in filenames:
+                    print '     ', fname
+                    self.win.saveScreenshot(os.path.join(dumpdir, 'groundtruth', fname))
 
 def main():
     parser = argparse.ArgumentParser(description='Fully loads a scene and then captures screenshots based on a previous run of loadscene.py')
