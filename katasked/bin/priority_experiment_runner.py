@@ -60,6 +60,8 @@ def main():
     for priority_algo_name in priority.get_priority_algorithm_names():
         
         for motioncap_filename in motioncap_filenames:
+            
+            motioncap_duration = json.loads(open(motioncap_filename, 'r').read())['duration']
         
             for iteration_num in range(args.iterations):
                 
@@ -68,8 +70,12 @@ def main():
                 expdirs.append(expdir)
                 
                 if os.path.exists(os.path.join(expdir, 'info.json')):
-                    print 'Skipping loadscene for', expdir
-                    continue
+                    num_screenshots = len(json.loads(open(os.path.join(expdir, 'info.json'), 'r').read()))
+                    if num_screenshots >= 0.8 * motioncap_duration:
+                        print 'Skipping loadscene for', expdir
+                        continue
+                    else:
+                        print 'Running again because only found', num_screenshots, 'screenshots for a', motioncap_duration, 'motion duration'
                 
                 if not os.path.isdir(expdir):
                     os.makedirs(expdir)
