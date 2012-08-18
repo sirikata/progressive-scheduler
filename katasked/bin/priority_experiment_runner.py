@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 
 import os
+import sys
 import json
 import subprocess
 import shutil
@@ -92,7 +93,15 @@ def main():
                     if args.cdn_domain is not None:
                         command.extend(['--cdn-domain', args.cdn_domain])
                     
-                    call(command)
+                    retcode = call(command)
+                    if retcode < 0.7 * motioncap_duration:
+                        print
+                        print '====='
+                        print 'ERROR: loadscene is not doing well. it only took', retcode, 'screenshots out of expected', motioncap_duration
+                        print expdir
+                        print '====='
+                        print
+                        sys.exit(-1)
                     
                 finally:
                     shutil.rmtree(tempdir, ignore_errors=True)
