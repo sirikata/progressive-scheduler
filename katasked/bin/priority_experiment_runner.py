@@ -75,7 +75,7 @@ def main():
                 
                 if os.path.exists(os.path.join(expdir, 'info.json')):
                     num_screenshots = len(json.loads(open(os.path.join(expdir, 'info.json'), 'r').read()))
-                    if num_screenshots >= 0.7 * motioncap_duration:
+                    if num_screenshots >= 0.6 * motioncap_duration:
                         print 'Skipping loadscene for', expdir
                         continue
                     else:
@@ -97,7 +97,7 @@ def main():
                         command.extend(['--cdn-domain', args.cdn_domain])
                     
                     retcode = call(command)
-                    if retcode < 0.7 * motioncap_duration:
+                    if retcode < 0.6 * motioncap_duration:
                         print
                         print '====='
                         print 'ERROR: loadscene is not doing well. it only took', retcode, 'screenshots out of expected', motioncap_duration
