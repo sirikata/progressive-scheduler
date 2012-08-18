@@ -100,7 +100,7 @@ def urlfetch(url, httprange=None):
         resp = REQUESTS_SESSION.get(url, headers=headers)
         # raises HTTPError on non-200 response
         resp.raise_for_status()
-    except (requests.HTTPError, requests.Timeout):
+    except (requests.HTTPError, requests.Timeout, requests.ConnectionError):
         # close all open connections if we get some error
         REQUESTS_SESSION.close()
         REQUESTS_SESSION = _get_session()

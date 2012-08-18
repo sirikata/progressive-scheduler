@@ -60,6 +60,9 @@ def main():
     expdirs = []
     for priority_algo_name in priority.get_priority_algorithm_names():
         
+        if priority_algo_name == 'FromFile':
+            continue
+        
         for motioncap_filename in motioncap_filenames:
             
             motioncap_duration = json.loads(open(motioncap_filename, 'r').read())['duration']
