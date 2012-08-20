@@ -329,7 +329,9 @@ class ProgressiveLoader(ShowBase.ShowBase):
             with open(os.path.join(self.screenshot_dir, 'info.json'), 'w') as f:
                 json.dump(self.screenshot_info, f, indent=2)
         
-        sys.exit(len(self.screenshot_info))
+            sys.exit(len(self.screenshot_info))
+        
+        sys.exit(0)
 
     def update_stats(self):
         self.txtMetadataLoaded.setText('Metadata Loaded: %d/%d' % (self.num_metadata_loaded, len(self.unique_models)))
