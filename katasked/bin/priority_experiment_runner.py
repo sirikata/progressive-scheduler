@@ -139,13 +139,14 @@ def main():
     
     while retcode != 0:
         for expdir in expdirs:
-            realtime_files = set(os.listdir(os.path.join(expdir, 'realtime')))
+            info_data = json.loads(open(os.path.join(expdir, 'info.json'), 'r').read())
+            need_filenames = set([i['filename'] for i in info_data])
             try:
                 groundtruth_files = set(os.listdir(os.path.join(expdir, 'groundtruth')))
             except OSError:
                 groundtruth_files = set()
             
-            if realtime_files == groundtruth_files:
+            if need_filenames.issubset(groundtruth_files):
                 print 'Skipping fullscene_screenshotter for', expdir
                 continue
             
