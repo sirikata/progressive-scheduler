@@ -3,6 +3,7 @@
 import os
 import sys
 import json
+import time
 import subprocess
 import shutil
 import tempfile
@@ -20,7 +21,16 @@ PERCEPTUAL_DIFFER = os.path.join(CURDIR, 'perceptual_differ.py')
 
 def call(*args, **kwargs):
     print 'Executing', ' '.join(args[0])
-    return subprocess.call(*args, **kwargs)
+    start_time = time.time()
+    timeout = kwargs.pop('timeout', None)
+    p = subprocess.Popen(*args, **kwargs)
+    while p.poll() is None:
+        t = time.time()
+        if timeout is not None and t - start_time > timeout:
+            p.kill()
+            return None
+        time.sleep(1)
+    return p.poll()
 
 def main():
     parser = argparse.ArgumentParser(description=('Runs an experiment for each priority algorithm registered, generating screenshots '
@@ -96,15 +106,22 @@ def main():
                     if args.cdn_domain is not None:
                         command.extend(['--cdn-domain', args.cdn_domain])
                     
-                    retcode = call(command)
-                    if retcode < 0.6 * motioncap_duration:
-                        print
-                        print '====='
-                        print 'ERROR: loadscene is not doing well. it only took', retcode, 'screenshots out of expected', motioncap_duration
-                        print expdir
-                        print '====='
-                        print
-                        sys.exit(-1)
+                    retcode = None
+                    while retcode is None or retcode < 0.6 * motioncap_duration:
+                        retcode = call(command, timeout=2*motioncap_duration)
+                        if retcode is None:
+                            print
+                            print '====='
+                            print 'ERROR: loadscene timed out!'
+                            print '====='
+                            print
+                        elif retcode < 0.6 * motioncap_duration:
+                            print
+                            print '====='
+                            print 'ERROR: loadscene is not doing well. it only took', retcode, 'screenshots out of expected', motioncap_duration
+                            print expdir
+                            print '====='
+                            print
                     
                 finally:
                     shutil.rmtree(tempdir, ignore_errors=True)
