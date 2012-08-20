@@ -16,40 +16,58 @@ class PriorityAlgorithm(object):
         raise NotImplementedError()
 
 class SingleSolidAngle(PriorityAlgorithm):
+    name = 'Solid Angle'
+    
     def combine(self, metrics):
         return metrics.solid_angle
 
 class SingleFuture2SolidAngle(PriorityAlgorithm):
+    name = 'Solid Angle +2'
+    
     def combine(self, metrics):
         return metrics.future_2_solid_angle
 
 class SingleFuture5SolidAngle(PriorityAlgorithm):
+    name = 'Solid Angle +5'
+    
     def combine(self, metrics):
         return metrics.future_5_solid_angle
 
 class SingleCameraAngle(PriorityAlgorithm):
+    name = 'Camera Angle'
+    
     def combine(self, metrics):
         return metrics.camera_angle
 
 class SingleFuture2CameraAngle(PriorityAlgorithm):
+    name = 'Camera Angle +2'
+    
     def combine(self, metrics):
         return metrics.future_2_camera_angle
 
 class SingleFuture5CameraAngle(PriorityAlgorithm):
+    name = 'Camera Angle +5'
+    
     def combine(self, metrics):
         return metrics.future_5_camera_angle
 
 class SinglePerceptualError(PriorityAlgorithm):
+    name = 'Perceptual Error'
+    
     def combine(self, metrics):
         return metrics.perceptual_error
 
 class Random(PriorityAlgorithm):
+    name = 'Random'
+    
     def combine(self, metrics):
         # note: not actually used because of optimization below using random.sample
         raise NotImplementedError()
         return random.random()
 
 class HandTuned1(PriorityAlgorithm):
+    name = 'Hand Tuned Linear'
+    
     def combine(self, metrics):
         return metrics.solid_angle * 2000 + \
                 metrics.future_2_solid_angle * 4000 + \
@@ -60,6 +78,8 @@ class HandTuned1(PriorityAlgorithm):
                 metrics.perceptual_error * 1
 
 class HandTuned2(PriorityAlgorithm):
+    name = 'Hand Tuned Multiply'
+    
     def combine(self, metrics):
         return metrics.solid_angle * \
                 metrics.future_2_solid_angle * \

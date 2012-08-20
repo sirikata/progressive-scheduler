@@ -16,11 +16,19 @@ A an evaluation framework for progressive mesh scheduling
 
 ## Scripts
 
+### Motion Capture
+
 * bin/pathcapture.py - captures a motion path for a scene into a JSON file
 * bin/pathreplay.py - replays a motion path for a scene
+
+### Scene Loading
+
 * bin/loadscene.py - loads a scene progressively, with an optional motion path
 * bin/fullscene_screenshotter.py - loads a scene completely and then takes
   screenshots
+
+### Experiment Scripts
+
 * bin/perceptual_differ.py - compare loadscene.py screenshots with
   fullscene_screenshotter.py screenshots using perceptualdiff
 * bin/priority_experiment_runner.py - runs cycles of loadscene,
@@ -28,3 +36,7 @@ A an evaluation framework for progressive mesh scheduling
 * bin/optimization_runner.py - runs cycles of loadscene, fullscene_screenshotter,
   and perceptual_differ, changing the priority weights using FromFile method
   based on the inputs from scipy.optimize.minimize algorithm
+
+### Graphing
+
+* bin/priority_experiment_graph.py - graphs the result of priority_experiment_runner.py
