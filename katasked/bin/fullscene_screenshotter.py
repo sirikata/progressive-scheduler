@@ -75,7 +75,7 @@ class FullSceneScreenshotLoader(loader.ProgressiveLoader):
                 
             for poshpr, filenames in unique_pt_map.iteritems():
                 print '  ', poshpr
-                self.camera.setPosHpr(*(position + hpr))
+                self.cam.setPosHpr(*poshpr)
                 
                 self.taskMgr.step()
                 self.taskMgr.step()
