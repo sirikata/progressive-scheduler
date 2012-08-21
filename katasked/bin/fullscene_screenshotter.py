@@ -5,6 +5,7 @@ import json
 import collections
 
 import argparse
+import panda3d.core as p3d
 from clint.textui import progress
 
 import pathmangle
@@ -32,7 +33,15 @@ class FullSceneScreenshotLoader(loader.ProgressiveLoader):
                 else:
                     for instance_np in self.nodepaths_byslug[modelslug]:
                         geomnode.instanceTo(instance_np)
-                    self.rigid_body_combiners[modelslug].collect()
+                    
+                    rbc = self.rigid_body_combiner_np[modelslug]
+                    instances = self.rigid_body_combiner_np[modelslug].getChildren()
+                    newparent = p3d.NodePath(rbc.getName())
+                    for i in instances:
+                        i.reparentTo(newparent)
+                    newparent.reparentTo(self.render)
+                    newparent.flattenStrong()
+                    rbc.detachNode()
         
         self.dumpdirs = screenshot_dirs
         
@@ -71,8 +80,9 @@ class FullSceneScreenshotLoader(loader.ProgressiveLoader):
                 hpr = camera_pt['hpr']
                 
                 poshpr = tuple(position + hpr)
-                unique_pt_map[poshpr].append(fname)
+                unique_pt_map[poshpr].append(os.path.join(dumpdir, 'groundtruth', fname))
                 
+            import time
             for poshpr, filenames in unique_pt_map.iteritems():
                 print '  ', poshpr
                 self.cam.setPosHpr(*poshpr)
@@ -82,7 +92,7 @@ class FullSceneScreenshotLoader(loader.ProgressiveLoader):
                 
                 for fname in filenames:
                     print '     ', fname
-                    self.win.saveScreenshot(os.path.join(dumpdir, 'groundtruth', fname))
+                    self.win.saveScreenshot(fname)
 
 def main():
     parser = argparse.ArgumentParser(description='Fully loads a scene and then captures screenshots based on a previous run of loadscene.py')

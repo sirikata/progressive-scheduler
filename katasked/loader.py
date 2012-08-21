@@ -50,6 +50,7 @@ class ProgressiveLoader(ShowBase.ShowBase):
         p3d.loadPrcFileData('', 'compressed-textures 1')
         p3d.loadPrcFileData('', 'allow-incomplete-render 1')
         
+        
         # window size to 1024x768
         p3d.loadPrcFileData('', 'win-size 1024 768')
         
@@ -317,7 +318,7 @@ class ProgressiveLoader(ShowBase.ShowBase):
             return task.again
         
         run_time = self.globalClock.getLongTime() - self.start_time
-        fname = ('%07.2f' % run_time) + '.png'
+        fname = ('%07.2f' % run_time) + '.tiff'
         self.screenshot_info.append({'filename': fname,
                                      'position': list(self.cam.getPos()),
                                      'hpr': list(self.cam.getHpr())})
