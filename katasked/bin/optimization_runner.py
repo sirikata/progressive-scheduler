@@ -46,8 +46,6 @@ def call(*args, **kwargs):
 
 iteration_num = 0
 
-TRIALS = 3
-
 def main():
     parser = argparse.ArgumentParser(description=('Runs scipy.minimize function, trying to minimize percept error '
                                                   'where each iteration runs loadscene.py, fullscene_screenshotter.py, '
@@ -62,6 +60,7 @@ def main():
     parser.add_argument('--scene', '-s', metavar='scene.json', type=argparse.FileType('r'), required=True,
                         help='Scene file to render.')
     parser.add_argument('--cdn-domain', metavar='example.com')
+    parser.add_argument('--num-trials', type=int, default=3, help='Number of trials per experiment')
     
     args = parser.parse_args()
     
@@ -107,7 +106,7 @@ def main():
             
                 motioncap_duration = json.loads(open(motioncap_filename, 'r').read())['duration']
                 
-                for trial_num in range(TRIALS):
+                for trial_num in range(args.num_trials):
                     
                     trial_expdir = os.path.join(expdir, os.path.basename(motioncap_filename), 'trial_%d' % trial_num)
                     if not os.path.isdir(trial_expdir):
@@ -203,7 +202,6 @@ def main():
             if len(command) > 1:
                 call(command)
             
-            perceptual_datas = []
             exp_means = []
             for expdir in expdirs:
                 perceptual_diff_file = os.path.join(expdir, 'perceptualdiff.json')
