@@ -28,6 +28,8 @@ def main():
     if os.path.exists(outdir) and not os.path.isdir(outdir):
         parser.error('Invalid directory: %s' % outdir)
     
+    algo_means = collections.defaultdict(list)
+    
     for priority_algo_name in priority.get_priority_algorithm_names():
         if priority_algo_name == 'FromFile':
             continue
@@ -63,6 +65,27 @@ def main():
                 trial_means.append(mean)
                 
             print priority_algo_name, capname, ['%.7g' % v for v in trial_means]
+            algo_means[friendly_name].extend(trial_means)
+    
+    algo_results = [(numpy.mean(vals), name) for name, vals in algo_means.iteritems()]
+    
+    print
+    print 'Absolute values'
+    print '==============='
+    for mean, name in sorted(algo_results, reverse=True):
+        print '%s    %0.7g' % (name.rjust(20), mean)
+    
+    print
+    print 'Normalized'
+    print '=========='
+    for mean, name in sorted(algo_results, reverse=True):
+        print '%s    %.4g' % (name.rjust(20), mean / max(dict(algo_results).keys()))
+    
+    print
+    print 'As percentage of image size'
+    print '==========================='
+    for mean, name in sorted(algo_results, reverse=True):
+        print '%s    %.2g %%' % (name.rjust(20), (mean / (1024 * 768)) * 100)
     
     import sys
     sys.exit(0)
