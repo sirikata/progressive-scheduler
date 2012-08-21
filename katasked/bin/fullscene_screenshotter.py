@@ -40,7 +40,7 @@ class FullSceneScreenshotLoader(loader.ProgressiveLoader):
                     for i in instances:
                         i.reparentTo(newparent)
                     newparent.reparentTo(self.render)
-                    newparent.flattenMedium()
+                    #newparent.flattenMedium()
                     rbc.detachNode()
         
         self.dumpdirs = screenshot_dirs
