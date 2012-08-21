@@ -2,6 +2,7 @@
 
 import os
 import json
+import time
 import subprocess
 
 import argparse
@@ -9,6 +10,8 @@ import clint.textui.progress as progress
 
 import pathmangle
 import katasked.util as util
+
+WINDOW_SIZE = 6
 
 def main():
     parser = argparse.ArgumentParser(description='Compares screenshots from loadscene and fullscene_screenshotter using perceptualdiff')
@@ -31,24 +34,47 @@ def main():
         filenames = [ss['filename'] for ss in ss_info]
         file_errors = []
         
-        for fname in progress.bar(filenames, label='Processing directory %s...' % d):
+        tocompare = []
+        for fname in filenames:
             realtime_file = os.path.join(d, 'realtime', fname)
             groundtruth_file = os.path.join(d, 'groundtruth', fname)
             
-            try:
-                output = subprocess.check_output([perceptualdiff, '-threshold', '1', realtime_file, groundtruth_file], stderr=subprocess.STDOUT)
-            except subprocess.CalledProcessError, e:
-                output = e.output
+            tocompare.append((realtime_file, groundtruth_file))
+        
+        running = []
+        while len(running) > 0 or len(tocompare) > 0:
+            while len(running) < WINDOW_SIZE and len(tocompare) > 0:
+                realtime_file, groundtruth_file = tocompare.pop()
+                print '=====>', realtime_file
+                p = subprocess.Popen([perceptualdiff, '-threshold', '1', realtime_file, groundtruth_file],
+                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+                running.append((realtime_file, p))
             
-            output = output.strip()
-            if len(output) == 0:
-                pixels = 0
-            else:
-                lines = output.split("\n")
-                pixels = int(lines[1].split()[0])
+            new_running = []
+            finished = []
+            for realtime_file, p in running:
+                if p.poll() is None:
+                    new_running.append((realtime_file, p))
+                else:
+                    finished.append((realtime_file, p))
+            running = new_running
             
-            file_errors.append({'filename': os.path.basename(realtime_file),
-                                'perceptualdiff': pixels})
+            for realtime_file, p in finished:
+                output = p.stdout.read()
+                output = output.strip()
+                
+                if len(output) == 0:
+                    pixels = 0
+                else:
+                    lines = output.split("\n")
+                    pixels = int(lines[1].split()[0])
+                
+                print '<==(%d)==' % pixels, realtime_file
+                
+                file_errors.append({'filename': os.path.basename(realtime_file),
+                                    'perceptualdiff': pixels})
+            
+            time.sleep(0.2)
         
         with open(os.path.join(d, 'perceptualdiff.json'), 'w') as f:
             json.dump(file_errors, f, indent=2)
