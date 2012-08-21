@@ -76,6 +76,8 @@ def main():
             
             time.sleep(0.2)
         
+        file_errors.sort(key=lambda i: float('.'.join(i['filename'].split('.')[:2])))
+        
         with open(os.path.join(d, 'perceptualdiff.json'), 'w') as f:
             json.dump(file_errors, f, indent=2)
 
