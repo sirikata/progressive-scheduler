@@ -206,7 +206,7 @@ def main():
             perceptual_datas = []
             exp_means = []
             for expdir in expdirs:
-                perceptual_diff_file = os.path.join(trial_expdir, 'perceptualdiff.json')
+                perceptual_diff_file = os.path.join(expdir, 'perceptualdiff.json')
                 with open(perceptual_diff_file, 'r') as f:
                     perceptual_data = json.load(f)
             
