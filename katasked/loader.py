@@ -211,7 +211,6 @@ class ProgressiveLoader(ShowBase.ShowBase):
         finished_tasks = self.multiplexer.poll(self.pandastate)
         t1 = time.time()
         time_took = t1-t0
-        print 'took', time_took * 1000
         time_wait = time_took * 2.0
         time_wait = min(time_wait, 1)
         time_wait = max(time_wait, 0.1)
@@ -269,9 +268,10 @@ class ProgressiveLoader(ShowBase.ShowBase):
         self.waiting.append((LOAD_TYPE.TEXTURE_UPDATE, np, newtex))
         
     def load_waiting(self, task):
-        task.delayTime = 0.2
+        time_wait = 0.1
         
         if len(self.waiting) > 0:
+            t0 = time.time()
             args = self.waiting.pop(0)
             if args[0] == LOAD_TYPE.INITIAL_MODEL:
                 modelpath, modelslug = args[1], args[2]
@@ -312,7 +312,14 @@ class ProgressiveLoader(ShowBase.ShowBase):
                 if self.showstats:
                     self.num_mesh_refinements += 1
                     self.update_stats()
+            
+            t1 = time.time()
+            time_took = t1-t0
+            time_wait = time_took * 2.0
+            time_wait = min(time_wait, 1)
+            time_wait = max(time_wait, 0.1)
         
+        task.delayTime = time_wait
         return task.again
 
     def trigger_screenshot(self, task):
