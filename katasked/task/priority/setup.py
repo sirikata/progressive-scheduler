@@ -17,7 +17,7 @@ elif sys.platform == 'darwin':
 elif sys.platform == 'linux2':
     args['library_dirs'] = [r'/usr/lib/panda3d', r'/usr/lib64/panda3d']
     args['include_dirs'] = ['/usr/include/panda3d/']
-    args['libraries'] = ['panda']
+    args['libraries'] = ['panda', 'p3direct']
 else:
     raise OSError("Specify compiler args for your system")
 
