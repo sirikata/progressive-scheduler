@@ -157,12 +157,20 @@ def calc_solid_angle(camera_pos, np):
     
     return solid_angle / MAX_SOLID_ANGLE
 
-def calc_camera_angle(camera_np, camera_forward, np):
-    camera_np.lookAt(np.getPos())
+def calc_camera_angle(camera_np, camera_forward, np, obj_bounds):
+    inside = obj_bounds.contains(camera_np.getPos())
+    if inside & p3d.BoundingVolume.IFAll:
+        return 1.0
+    
+    to_center = camera_np.getPos() - obj_bounds.getCenter()
+    to_center.normalize()
+    closest_point = obj_bounds.getCenter() + to_center * obj_bounds.getRadius()
+    
+    camera_np.lookAt(closest_point)
     copied_forward = camera_np.getQuat().getForward()
     copied_forward.normalize()
     angle_change = copied_forward.angleDeg(camera_forward)
-    return 1.0 - (angle_change / 360.0)
+    return 1.0 - (angle_change / 180.0)
 
 def calc_priority(pandastate, tasks):
     task_modelslugs = dict((t.modelslug, t) for t in tasks)
@@ -213,9 +221,10 @@ def calc_priority(pandastate, tasks):
         metrics.future_5_solid_angle = calc_solid_angle(camera_pos_future_5, np)
         
         # calc angle between camera and object
-        metrics.camera_angle = calc_camera_angle(copied_camera, camera_forward, np)
-        metrics.future_2_camera_angle = calc_camera_angle(copied_camera_future_2, camera_forward_future_2, np)
-        metrics.future_5_camera_angle = calc_camera_angle(copied_camera_future_5, camera_forward_future_5, np)
+        obj_bounds = pandastate.obj_bounds[np]
+        metrics.camera_angle = calc_camera_angle(copied_camera, camera_forward, np, obj_bounds)
+        metrics.future_2_camera_angle = calc_camera_angle(copied_camera_future_2, camera_forward_future_2, np, obj_bounds)
+        metrics.future_5_camera_angle = calc_camera_angle(copied_camera_future_5, camera_forward_future_5, np, obj_bounds)
     
     # combine metrics together
     task_priorities = collections.defaultdict(float)

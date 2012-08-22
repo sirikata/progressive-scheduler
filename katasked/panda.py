@@ -4,7 +4,7 @@ import panda3d.core as p3d
 import meshtool.filters.panda_filters.pandacore as pcore
 
 class PandaState(object):
-    def __init__(self, camera, unique_nodepaths, nodepaths, camera_smoother, globalClock):
+    def __init__(self, camera, unique_nodepaths, nodepaths, camera_smoother, globalClock, obj_bounds):
         self.camera = camera
         """Panda3D camera"""
         self.unique_nodepaths = unique_nodepaths
@@ -15,6 +15,8 @@ class PandaState(object):
         """An instance of SmoothMover that can be used to predict camera"""
         self.globalClock = globalClock
         """The Panda3D global clock"""
+        self.obj_bounds = obj_bounds
+        """Sphere bounding boxes for each nodepath"""
 
 def centerAndScale(nodePath, boundsInfo):
 

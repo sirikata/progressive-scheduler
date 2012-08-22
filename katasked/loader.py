@@ -79,6 +79,7 @@ class ProgressiveLoader(ShowBase.ShowBase):
         
         # then instance each unique model to its instantiation in the actual scene
         self.nodepaths = {}
+        self.obj_bounds = {}
         self.nodepaths_byslug = collections.defaultdict(list)
         for model in self.scene:
             unique_np = self.unique_nodepaths[model.slug]
@@ -101,6 +102,7 @@ class ProgressiveLoader(ShowBase.ShowBase):
             q.setK(model.orient_z)
             q.setR(model.orient_w)
             np.setQuat(q)
+            self.obj_bounds[np] = p3d.BoundingSphere(np.getPos(), np.getScale()[0])
         
         for rbc in self.rigid_body_combiners.itervalues():
             rbc.collect()
@@ -160,7 +162,8 @@ class ProgressiveLoader(ShowBase.ShowBase):
                                                     self.unique_nodepaths,
                                                     self.nodepaths,
                                                     self.smooth_mover,
-                                                    self.globalClock)
+                                                    self.globalClock,
+                                                    self.obj_bounds)
         
         if self.capturefile is not None:
             self.capturedata = json.load(self.capturefile)
@@ -208,6 +211,7 @@ class ProgressiveLoader(ShowBase.ShowBase):
         finished_tasks = self.multiplexer.poll(self.pandastate)
         t1 = time.time()
         time_took = t1-t0
+        print 'took', time_took * 1000
         time_wait = time_took * 2.0
         time_wait = min(time_wait, 1)
         time_wait = max(time_wait, 0.1)
