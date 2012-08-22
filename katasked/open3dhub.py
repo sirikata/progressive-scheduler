@@ -205,6 +205,8 @@ def load_mesh(mesh_data, subfiles):
 def texture_data_to_nodepath(texture_data):
     tex = pandacore.textureFromData(texture_data)
     tex.generateSimpleRamImage()
+    tex.compressRamImage()
+    tex.setCompression(p3d.Texture.CMOn)
     np = p3d.NodePath(p3d.PandaNode("dummytexture"))
     np.setTexture(tex)
     return np
