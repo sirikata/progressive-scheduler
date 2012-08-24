@@ -239,17 +239,17 @@ def get_algorithm_by_name(name):
 
 cdef class Metrics:
     cdef public double solid_angle
-    cdef public future_2_solid_angle
-    cdef public future_5_solid_angle
-    cdef public camera_angle
-    cdef public camera_angle_exp
-    cdef public future_2_camera_angle
-    cdef public future_5_camera_angle
-    cdef public perceptual_error
-    cdef public perceptual_error_scale
-    cdef public perceptual_error_sang
-    cdef public distance
-    cdef public scale
+    cdef public double future_2_solid_angle
+    cdef public double future_5_solid_angle
+    cdef public double camera_angle
+    cdef public double camera_angle_exp
+    cdef public double future_2_camera_angle
+    cdef public double future_5_camera_angle
+    cdef public double perceptual_error
+    cdef public double perceptual_error_scale
+    cdef public double perceptual_error_sang
+    cdef public double distance
+    cdef public double scale
     
     def __init__(self):
         self.solid_angle = 0
@@ -268,7 +268,7 @@ cdef class Metrics:
     cpdef double combine(self) except *:
         return SELECTED_ALGORITHM.combine(self)
 
-cdef calc_solid_angle(LPoint3f camera_pos, NodePath* np):
+cdef double calc_solid_angle(LPoint3f camera_pos, NodePath* np):
     cdef LPoint3f to_center = camera_pos - np.get_pos()
     cdef float to_center_len = to_center.length()
     cdef float np_radius = np.get_scale().get_x()
@@ -320,23 +320,19 @@ cdef double calc_camera_angle(NodePath camera_np, LVector3f camera_forward, Node
     return 1.0 - (angle_change / 180.0)
 
 def calc_priority(pandastate, tasks):
-    task_modelslugs = dict((t.modelslug, t) for t in tasks)
+    cdef dict task_modelslugs = dict((t.modelslug, t) for t in tasks)
     
-    maxscale = max(np.getScale()[0] for np in pandastate.nodepaths.itervalues())
+    cdef double maxscale = max(np.getScale()[0] for np in pandastate.nodepaths.itervalues())
+    
+    cdef dict perceptual_errs = {}
+    for t in tasks:
+        perceptual_errs[t] = 1.0 - (float(t.perceptual_error) / (1024 * 768))
     
     np_metrics = {}
     for model, np in pandastate.nodepaths.iteritems():
         if model.slug in task_modelslugs:
             np_metrics[np] = Metrics()
-            
-            # add perceptual error, same for all models for a given task
-            perceptual_error = task_modelslugs[model.slug].perceptual_error
-            perceptual_error = 1.0 - (float(perceptual_error) / (1024 * 768))
-            np_metrics[np].perceptual_error = perceptual_error
-            
-            # use 1/scale, bounded to no more than 1.0, then invert it
-            scale = np.getScale()[0] / maxscale
-            np_metrics[np].scale = scale
+            np_metrics[np].perceptual_error = perceptual_errs[t]
     
     # needed for solid angle
     cdef NodePath* camera_np = <NodePath*>get_ptr(pandastate.camera)
@@ -374,10 +370,16 @@ def calc_priority(pandastate, tasks):
     
     cdef NodePath* npptr
     cdef BoundingSphere* obj_bounds
-    for np, metrics in np_metrics.iteritems():
+    cdef Metrics metrics
+    for np, metricobj in np_metrics.iteritems():
+        
+        npptr = <NodePath*>get_ptr(np)
+        metrics = metricobj
+        
+        # scale / maxscale
+        metrics.scale = npptr.get_scale().get_x() / maxscale
         
         # calc solid angle
-        npptr = <NodePath*>get_ptr(np)
         metrics.solid_angle = calc_solid_angle(camera_pos, npptr)
         metrics.future_2_solid_angle = calc_solid_angle(camera_pos_future_2, npptr)
         metrics.future_5_solid_angle = calc_solid_angle(camera_pos_future_5, npptr)
