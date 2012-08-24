@@ -48,7 +48,7 @@ class ProgressiveLoader(ShowBase.ShowBase):
         p3d.loadPrcFileData('', 'preload-textures 0')
         p3d.loadPrcFileData('', 'preload-simple-textures 1')
         p3d.loadPrcFileData('', 'compressed-textures 1')
-        p3d.loadPrcFileData('', 'allow-incomplete-render 1')
+        p3d.loadPrcFileData('', 'allow-incomplete-render 0')
         
         
         # window size to 1024x768
@@ -66,7 +66,8 @@ class ProgressiveLoader(ShowBase.ShowBase):
         self.rigid_body_combiners = {}
         self.rigid_body_combiner_np = {}
         for m in self.unique_models:
-            rbc = p3d.RigidBodyCombiner(m)
+            #rbc = p3d.RigidBodyCombiner(m)
+            rbc = p3d.NodePath(m)
             self.rigid_body_combiners[m] = rbc
             np = p3d.NodePath(rbc)
             np.reparentTo(self.render)
@@ -104,8 +105,8 @@ class ProgressiveLoader(ShowBase.ShowBase):
             np.setQuat(q)
             self.obj_bounds[np] = p3d.BoundingSphere(np.getPos(), np.getScale()[0])
         
-        for rbc in self.rigid_body_combiners.itervalues():
-            rbc.collect()
+        #for rbc in self.rigid_body_combiners.itervalues():
+        #    rbc.collect()
         
         self.waiting = []
         self.pm_waiting = collections.defaultdict(list)
@@ -288,7 +289,7 @@ class ProgressiveLoader(ShowBase.ShowBase):
                 else:
                     for instance_np in self.nodepaths_byslug[modelslug]:
                         geomnode.instanceTo(instance_np)
-                    self.rigid_body_combiners[modelslug].collect()
+                    #self.rigid_body_combiners[modelslug].collect()
                 
                 if self.showstats:
                     self.num_models_loaded += 1
@@ -306,8 +307,8 @@ class ProgressiveLoader(ShowBase.ShowBase):
                 np = self.unique_nodepaths[modelslug]
                 pdae_updater.update_nodepath(np.node(), pm_refinements)
                 
-                if self.instance_count[modelslug] > 1:
-                    self.rigid_body_combiners[modelslug].collect()
+                #if self.instance_count[modelslug] > 1:
+                #    self.rigid_body_combiners[modelslug].collect()
                 
                 if self.showstats:
                     self.num_mesh_refinements += 1
