@@ -48,7 +48,7 @@ class ProgressiveLoader(ShowBase.ShowBase):
         p3d.loadPrcFileData('', 'preload-textures 0')
         p3d.loadPrcFileData('', 'preload-simple-textures 1')
         p3d.loadPrcFileData('', 'compressed-textures 1')
-        p3d.loadPrcFileData('', 'allow-incomplete-render 1')
+        p3d.loadPrcFileData('', 'allow-incomplete-render 0')
         
         
         # window size to 1024x768
