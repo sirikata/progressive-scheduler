@@ -1,7 +1,8 @@
 from libcpp cimport bool
 
 cdef extern from "math.h":
-    double sqrt(double x)
+    double sqrt( double x )
+    double pow ( double base, double exponent )
 
 cdef extern from "<string>" namespace "std":
     cdef cppclass string:
@@ -42,6 +43,8 @@ cdef extern from "lvecBase3.h":
         bool normalize()
         float length()
         float get_x()
+        float get_y()
+        float get_z()
 
 cdef extern from "lpoint3.h":
     cdef cppclass LPoint3f(LVecBase3):
@@ -111,6 +114,12 @@ cdef class SingleCameraAngle(PriorityAlgorithm):
     cpdef combine(self, Metrics metrics):
         return metrics.camera_angle
 
+cdef class SingleCameraAngleExp(PriorityAlgorithm):
+    name = 'Camera Angle Exp'
+    
+    cpdef combine(self, Metrics metrics):
+        return metrics.camera_angle_exp
+
 cdef class SingleFuture2CameraAngle(PriorityAlgorithm):
     name = 'Camera Angle +2'
     
@@ -123,11 +132,35 @@ cdef class SingleFuture5CameraAngle(PriorityAlgorithm):
     cpdef combine(self, Metrics metrics):
         return metrics.future_5_camera_angle
 
+cdef class SingleDistance(PriorityAlgorithm):
+    name = 'Distance'
+    
+    cpdef combine(self, Metrics metrics):
+        return metrics.distance
+
+cdef class SingleScale(PriorityAlgorithm):
+    name = 'Scale'
+    
+    cpdef combine(self, Metrics metrics):
+        return metrics.scale
+
 cdef class SinglePerceptualError(PriorityAlgorithm):
     name = 'Perceptual Error'
     
     cpdef combine(self, Metrics metrics):
         return metrics.perceptual_error
+
+cdef class SinglePerceptualErrorScale(PriorityAlgorithm):
+    name = 'Perceptual Error * Scale'
+    
+    cpdef combine(self, Metrics metrics):
+        return metrics.perceptual_error_scale
+
+cdef class SinglePerceptualErrorSAng(PriorityAlgorithm):
+    name = 'Perceptual Error * SAng'
+    
+    cpdef combine(self, Metrics metrics):
+        return metrics.perceptual_error_sang
 
 cdef class Random(PriorityAlgorithm):
     name = 'Random'
@@ -182,8 +215,11 @@ cdef class FromFile(PriorityAlgorithm):
 
 PRIORITY_ALGORITHMS = [Random,
                        SingleSolidAngle, SingleCameraAngle, SinglePerceptualError,
+                       SingleCameraAngleExp,
+                       SinglePerceptualErrorScale, SinglePerceptualErrorSAng,
                        SingleFuture2SolidAngle, SingleFuture2CameraAngle,
                        SingleFuture5SolidAngle, SingleFuture5CameraAngle,
+                       SingleDistance, SingleScale,
                        FromFile,
                        HandTuned1, HandTuned2]
 
@@ -206,18 +242,28 @@ cdef class Metrics:
     cdef public future_2_solid_angle
     cdef public future_5_solid_angle
     cdef public camera_angle
+    cdef public camera_angle_exp
     cdef public future_2_camera_angle
     cdef public future_5_camera_angle
     cdef public perceptual_error
+    cdef public perceptual_error_scale
+    cdef public perceptual_error_sang
+    cdef public distance
+    cdef public scale
     
     def __init__(self):
         self.solid_angle = 0
         self.future_2_solid_angle = 0
         self.future_5_solid_angle = 0
         self.camera_angle = 0
+        self.camera_angle_exp = 0
         self.future_2_camera_angle = 0
         self.future_5_camera_angle = 0
         self.perceptual_error = 0
+        self.perceptual_error_scale = 0
+        self.perceptual_error_sang = 0
+        self.distance = 0
+        self.scale = 0
     
     cpdef double combine(self) except *:
         return SELECTED_ALGORITHM.combine(self)
@@ -240,7 +286,25 @@ cdef calc_solid_angle(LPoint3f camera_pos, NodePath* np):
     
     return solid_angle / MAX_SOLID_ANGLE
 
-cdef calc_camera_angle(NodePath camera_np, LVector3f camera_forward, NodePath* np, BoundingSphere* obj_bounds):
+cdef double calc_distance(NodePath camera_np, NodePath* np, BoundingSphere* obj_bounds):
+    cdef int inside = obj_bounds.contains(camera_np.get_pos())
+    if inside & 4:
+        return 1.0
+    
+    cdef LPoint3f to_center = camera_np.get_pos() - obj_bounds.get_center()
+    to_center.normalize()
+    cdef LPoint3f closest_point = obj_bounds.get_center() + to_center * obj_bounds.get_radius()
+    
+    cdef LPoint3f camera_loc = camera_np.get_pos()
+    cdef double xd = closest_point.get_x() - camera_loc.get_x()
+    cdef double yd = closest_point.get_y() - camera_loc.get_y()
+    cdef double zd = closest_point.get_z() - camera_loc.get_z()
+    cdef double dist = sqrt(xd*xd + yd*yd + zd*zd)
+    if dist < 1.0:
+        dist = 1.0
+    return 1.0 / dist
+
+cdef double calc_camera_angle(NodePath camera_np, LVector3f camera_forward, NodePath* np, BoundingSphere* obj_bounds):
     cdef int inside = obj_bounds.contains(camera_np.get_pos())
     if inside & 4:
         return 1.0
@@ -252,11 +316,13 @@ cdef calc_camera_angle(NodePath camera_np, LVector3f camera_forward, NodePath* n
     camera_np.look_at(closest_point)
     copied_forward = camera_np.get_quat().get_forward()
     copied_forward.normalize()
-    angle_change = copied_forward.angle_deg(camera_forward)
+    cdef double angle_change = copied_forward.angle_deg(camera_forward)
     return 1.0 - (angle_change / 180.0)
 
 def calc_priority(pandastate, tasks):
     task_modelslugs = dict((t.modelslug, t) for t in tasks)
+    
+    maxscale = max(np.getScale()[0] for np in pandastate.nodepaths.itervalues())
     
     np_metrics = {}
     for model, np in pandastate.nodepaths.iteritems():
@@ -267,6 +333,10 @@ def calc_priority(pandastate, tasks):
             perceptual_error = task_modelslugs[model.slug].perceptual_error
             perceptual_error = 1.0 - (float(perceptual_error) / (1024 * 768))
             np_metrics[np].perceptual_error = perceptual_error
+            
+            # use 1/scale, bounded to no more than 1.0, then invert it
+            scale = np.getScale()[0] / maxscale
+            np_metrics[np].scale = scale
     
     # needed for solid angle
     cdef NodePath* camera_np = <NodePath*>get_ptr(pandastate.camera)
@@ -312,11 +382,22 @@ def calc_priority(pandastate, tasks):
         metrics.future_2_solid_angle = calc_solid_angle(camera_pos_future_2, npptr)
         metrics.future_5_solid_angle = calc_solid_angle(camera_pos_future_5, npptr)
         
-        # calc angle between camera and object
+        # multiply perceptual error by scale and solid angle
+        metrics.perceptual_error_scale = metrics.perceptual_error * metrics.scale
+        metrics.perceptual_error_sang = metrics.perceptual_error * metrics.solid_angle
+        
         obj_bounds = <BoundingSphere*>get_ptr(pandastate.obj_bounds[np])
+        
+        # distance to object from camera
+        metrics.distance = calc_distance(copied_camera, npptr, obj_bounds)
+        
+        # calc angle between camera and object
         metrics.camera_angle = calc_camera_angle(copied_camera, camera_forward, npptr, obj_bounds)
         metrics.future_2_camera_angle = calc_camera_angle(copied_camera_future_2, camera_forward_future_2, npptr, obj_bounds)
         metrics.future_5_camera_angle = calc_camera_angle(copied_camera_future_5, camera_forward_future_5, npptr, obj_bounds)
+        
+        # camera angle with an exponential falloff
+        metrics.camera_angle_exp = pow(metrics.camera_angle, 2.0)
     
     # combine metrics together
     task_priorities = collections.defaultdict(float)
@@ -329,7 +410,9 @@ def calc_priority(pandastate, tasks):
         
         combined_priority = metrics.combine()
         task_priorities[task] += combined_priority
-        
+    
+    for task in task_modelslugs.itervalues():
+        task_priorities[task] = min(1.0, task_priorities[task])
         if isinstance(task, taskbase.DownloadTask):
             task_priorities[task] /= float(task.download_size)
     
@@ -342,4 +425,5 @@ def get_highest_N(pandastate, tasks, N):
     
     task_priorities = calc_priority(pandastate, tasks)
     largestN = heapq.nlargest(N, task_priorities.iteritems(), key=operator.itemgetter(1))
+    
     return [i[0] for i in largestN]
