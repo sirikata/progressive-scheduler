@@ -194,6 +194,8 @@ cdef class HandTuned2(PriorityAlgorithm):
                 metrics.perceptual_error
 
 cdef class FromFile(PriorityAlgorithm):
+    cdef public dict w
+    
     def __init__(self, fbuf):
         self.w = json.load(fbuf)
         assert isinstance(self.w['solid_angle'], float)
