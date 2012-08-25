@@ -399,7 +399,7 @@ def calc_priority(pandastate, tasks):
         metrics.future_5_camera_angle = calc_camera_angle(copied_camera_future_5, camera_forward_future_5, npptr, obj_bounds)
         
         # camera angle with an exponential falloff
-        metrics.camera_angle_exp = pow(metrics.camera_angle, 2.0)
+        metrics.camera_angle_exp = pow(metrics.camera_angle, 20.0)
     
     # combine metrics together
     task_priorities = collections.defaultdict(float)
