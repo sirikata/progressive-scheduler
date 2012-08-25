@@ -200,18 +200,28 @@ cdef class FromFile(PriorityAlgorithm):
         assert isinstance(self.w['future_2_solid_angle'], float)
         assert isinstance(self.w['future_5_solid_angle'], float)
         assert isinstance(self.w['camera_angle'], float)
+        assert isinstance(self.w['camera_angle_exp'], float)
         assert isinstance(self.w['future_2_camera_angle'], float)
         assert isinstance(self.w['future_5_camera_angle'], float)
         assert isinstance(self.w['perceptual_error'], float)
+        assert isinstance(self.w['scale'], float)
+        assert isinstance(self.w['distance'], float)
+        assert isinstance(self.w['perceptual_error_scale'], float)
+        assert isinstance(self.w['perceptual_error_sang'], float)
     
     cpdef combine(self, Metrics metrics):
         return metrics.solid_angle * self.w['solid_angle'] + \
                 metrics.future_2_solid_angle * self.w['future_2_solid_angle'] + \
                 metrics.future_5_solid_angle * self.w['future_5_solid_angle'] + \
                 metrics.camera_angle * self.w['camera_angle'] + \
+                metrics.camera_angle_ex * self.w['camera_angle_exp'] + \
                 metrics.future_2_camera_angle * self.w['future_2_camera_angle'] + \
                 metrics.future_5_camera_angle * self.w['future_5_camera_angle'] + \
-                metrics.perceptual_error * self.w['perceptual_error']
+                metrics.perceptual_error * self.w['perceptual_error'] + \
+                metrics.perceptual_error_sang * self.w['perceptual_error_sang'] + \
+                metrics.perceptual_error_scale * self.w['perceptual_error_scale'] + \
+                metrics.distance * self.w['distance'] + \
+                metrics.scale * self.w['scale']
 
 PRIORITY_ALGORITHMS = [Random,
                        SingleSolidAngle, SingleCameraAngle, SinglePerceptualError,
