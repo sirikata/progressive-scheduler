@@ -216,7 +216,7 @@ cdef class FromFile(PriorityAlgorithm):
                 metrics.future_2_solid_angle * self.w['future_2_solid_angle'] + \
                 metrics.future_5_solid_angle * self.w['future_5_solid_angle'] + \
                 metrics.camera_angle * self.w['camera_angle'] + \
-                metrics.camera_angle_ex * self.w['camera_angle_exp'] + \
+                metrics.camera_angle_exp * self.w['camera_angle_exp'] + \
                 metrics.future_2_camera_angle * self.w['future_2_camera_angle'] + \
                 metrics.future_5_camera_angle * self.w['future_5_camera_angle'] + \
                 metrics.perceptual_error * self.w['perceptual_error'] + \
