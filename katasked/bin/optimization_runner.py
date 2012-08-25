@@ -39,7 +39,7 @@ NULL_VARS = dict([
     ("perceptual_error_scale", 0.0),
 ])
 
-EPSILON = 10.0
+EPSILON = 200.0
 
 def call(*args, **kwargs):
     print 'Executing', ' '.join(args[0])
