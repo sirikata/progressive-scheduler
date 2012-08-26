@@ -174,12 +174,9 @@ cdef class HandTuned1(PriorityAlgorithm):
     
     cpdef combine(self, Metrics metrics):
         return metrics.solid_angle * 2000 + \
-                metrics.future_2_solid_angle * 4000 + \
-                metrics.future_5_solid_angle * 4000 + \
-                metrics.camera_angle * 0.5 + \
-                metrics.future_2_camera_angle * 0.75 + \
-                metrics.future_5_camera_angle * 0.75 + \
-                metrics.perceptual_error * 1
+                metrics.camera_angle_exp * 50 + \
+                metrics.scale * 50 + \
+                metrics.distance * 50
 
 cdef class HandTuned2(PriorityAlgorithm):
     name = 'Hand Tuned Multiply'
@@ -189,9 +186,14 @@ cdef class HandTuned2(PriorityAlgorithm):
                 metrics.future_2_solid_angle * \
                 metrics.future_5_solid_angle * \
                 metrics.camera_angle * \
+                metrics.camera_angle_exp * \
                 metrics.future_2_camera_angle * \
                 metrics.future_5_camera_angle * \
-                metrics.perceptual_error
+                metrics.perceptual_error * \
+                metrics.perceptual_error_scale * \
+                metrics.perceptual_error_sang * \
+                metrics.scale * \
+                metrics.distance
 
 cdef class FromFile(PriorityAlgorithm):
     cdef public dict w
@@ -426,7 +428,7 @@ def calc_priority(pandastate, tasks):
         task_priorities[task] += combined_priority
     
     for task in task_modelslugs.itervalues():
-        task_priorities[task] = min(1.0, task_priorities[task])
+        #task_priorities[task] = min(1.0, task_priorities[task])
         if isinstance(task, taskbase.DownloadTask):
             task_priorities[task] /= float(task.download_size)
     
