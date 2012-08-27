@@ -21,12 +21,12 @@ LOADSCENE = os.path.join(CURDIR, 'loadscene.py')
 FULLSCENE_SCREENSHOTTER = os.path.join(CURDIR, 'fullscene_screenshotter.py')
 PERCEPTUAL_DIFFER = os.path.join(CURDIR, 'perceptual_differ.py')
 
+CLAMP_METRIC = 'solid_angle'
+
 INITIAL_GUESS = collections.OrderedDict([
-    ("solid_angle", 50.0),
-    ("distance", 50.0),
-    ("scale", 50.0),
-    ("camera_angle_exp", 50.0),
-    ("perceptual_error", 50.0),
+    ("distance", 1.0),
+    ("scale", 1.0),
+    ("camera_angle_exp", 1.0),
 ])
 
 NULL_VARS = dict([
@@ -35,8 +35,12 @@ NULL_VARS = dict([
     ("camera_angle", 0.0),
     ("future_2_camera_angle", 0.0),
     ("future_5_camera_angle", 0.0),
+    ("perceptual_error", 0.0),
     ("perceptual_error_sang", 0.0),
     ("perceptual_error_scale", 0.0),
+    ("perceptual_error_exp", 0.0),
+    ("perceptual_error_exp_sang", 0.0),
+    ("perceptual_error_exp_scale", 0.0),
 ])
 
 EPSILON = 200.0
@@ -96,6 +100,7 @@ def main():
         iteration_num += 1
         
         new_guess = {}
+        new_guess[CLAMP_METRIC] = 1.0
         for i, varname in enumerate(INITIAL_GUESS.keys()):
             new_guess[varname] = x[i]
         
