@@ -22,14 +22,24 @@ FULLSCENE_SCREENSHOTTER = os.path.join(CURDIR, 'fullscene_screenshotter.py')
 PERCEPTUAL_DIFFER = os.path.join(CURDIR, 'perceptual_differ.py')
 
 INITIAL_GUESS = collections.OrderedDict([
-    ("solid_angle", 1.0),
-    ("future_5_solid_angle", 1.0),
-    ("future_2_solid_angle", 1.0),
-    ("camera_angle", 1.0),
-    ("future_2_camera_angle", 1.0),
-    ("future_5_camera_angle", 1.0),
-    ("perceptual_error", 1.0),
+    ("solid_angle", 50.0),
+    ("distance", 50.0),
+    ("scale", 50.0),
+    ("camera_angle_exp", 50.0),
+    ("perceptual_error", 50.0),
 ])
+
+NULL_VARS = dict([
+    ("future_5_solid_angle", 0.0),
+    ("future_2_solid_angle", 0.0),
+    ("camera_angle", 0.0),
+    ("future_2_camera_angle", 0.0),
+    ("future_5_camera_angle", 0.0),
+    ("perceptual_error_sang", 0.0),
+    ("perceptual_error_scale", 0.0),
+])
+
+EPSILON = 200.0
 
 def call(*args, **kwargs):
     print 'Executing', ' '.join(args[0])
@@ -126,7 +136,7 @@ def main():
                     try:
                         
                         with open(temp_json_fname, 'w') as f:
-                            json.dump(new_guess, f)
+                            json.dump(dict(new_guess.items() + NULL_VARS.items()), f)
                         
                         command = [LOADSCENE,
                                    '--capture', motioncap_filename,
@@ -234,7 +244,7 @@ def main():
             print '==> Iteration %i result %.7g' % (iteration_num, iteration_data['mean'])
             return iteration_data['mean']
     
-    res = scipy.optimize.minimize(iteration, INITIAL_GUESS.values(), method='BFGS')
+    res = scipy.optimize.fmin_bfgs(iteration, INITIAL_GUESS.values(), epsilon=EPSILON)
     print 'answer', res.x
 
 if __name__ == '__main__':

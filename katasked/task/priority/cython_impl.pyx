@@ -192,12 +192,9 @@ cdef class HandTuned1(PriorityAlgorithm):
     
     cpdef combine(self, Metrics metrics):
         return metrics.solid_angle * 2000 + \
-                metrics.future_2_solid_angle * 4000 + \
-                metrics.future_5_solid_angle * 4000 + \
-                metrics.camera_angle * 0.5 + \
-                metrics.future_2_camera_angle * 0.75 + \
-                metrics.future_5_camera_angle * 0.75 + \
-                metrics.perceptual_error * 1
+                metrics.camera_angle_exp * 50 + \
+                metrics.scale * 50 + \
+                metrics.distance * 50
 
 cdef class HandTuned2(PriorityAlgorithm):
     name = 'Hand Tuned Multiply'
@@ -207,29 +204,46 @@ cdef class HandTuned2(PriorityAlgorithm):
                 metrics.future_2_solid_angle * \
                 metrics.future_5_solid_angle * \
                 metrics.camera_angle * \
+                metrics.camera_angle_exp * \
                 metrics.future_2_camera_angle * \
                 metrics.future_5_camera_angle * \
-                metrics.perceptual_error
+                metrics.perceptual_error * \
+                metrics.perceptual_error_scale * \
+                metrics.perceptual_error_sang * \
+                metrics.scale * \
+                metrics.distance
 
 cdef class FromFile(PriorityAlgorithm):
+    cdef public dict w
+    
     def __init__(self, fbuf):
         self.w = json.load(fbuf)
         assert isinstance(self.w['solid_angle'], float)
         assert isinstance(self.w['future_2_solid_angle'], float)
         assert isinstance(self.w['future_5_solid_angle'], float)
         assert isinstance(self.w['camera_angle'], float)
+        assert isinstance(self.w['camera_angle_exp'], float)
         assert isinstance(self.w['future_2_camera_angle'], float)
         assert isinstance(self.w['future_5_camera_angle'], float)
         assert isinstance(self.w['perceptual_error'], float)
+        assert isinstance(self.w['scale'], float)
+        assert isinstance(self.w['distance'], float)
+        assert isinstance(self.w['perceptual_error_scale'], float)
+        assert isinstance(self.w['perceptual_error_sang'], float)
     
     cpdef combine(self, Metrics metrics):
         return metrics.solid_angle * self.w['solid_angle'] + \
                 metrics.future_2_solid_angle * self.w['future_2_solid_angle'] + \
                 metrics.future_5_solid_angle * self.w['future_5_solid_angle'] + \
                 metrics.camera_angle * self.w['camera_angle'] + \
+                metrics.camera_angle_exp * self.w['camera_angle_exp'] + \
                 metrics.future_2_camera_angle * self.w['future_2_camera_angle'] + \
                 metrics.future_5_camera_angle * self.w['future_5_camera_angle'] + \
-                metrics.perceptual_error * self.w['perceptual_error']
+                metrics.perceptual_error * self.w['perceptual_error'] + \
+                metrics.perceptual_error_sang * self.w['perceptual_error_sang'] + \
+                metrics.perceptual_error_scale * self.w['perceptual_error_scale'] + \
+                metrics.distance * self.w['distance'] + \
+                metrics.scale * self.w['scale']
 
 PRIORITY_ALGORITHMS = [Random,
                        SingleSolidAngle, SingleCameraAngle, SinglePerceptualError,
@@ -427,7 +441,7 @@ def calc_priority(pandastate, tasks):
         metrics.future_5_camera_angle = calc_camera_angle(copied_camera_future_5, camera_forward_future_5, npptr, obj_bounds)
         
         # camera angle with an exponential falloff
-        metrics.camera_angle_exp = pow(metrics.camera_angle, 2.0)
+        metrics.camera_angle_exp = pow(metrics.camera_angle, 20.0)
     
     # combine metrics together
     task_priorities = collections.defaultdict(float)
@@ -442,7 +456,7 @@ def calc_priority(pandastate, tasks):
         task_priorities[task] += combined_priority
     
     for task in task_modelslugs.itervalues():
-        task_priorities[task] = min(1.0, task_priorities[task])
+        #task_priorities[task] = min(1.0, task_priorities[task])
         if isinstance(task, taskbase.DownloadTask):
             task_priorities[task] /= float(task.download_size)
     
