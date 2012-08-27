@@ -162,6 +162,24 @@ cdef class SinglePerceptualErrorSAng(PriorityAlgorithm):
     cpdef combine(self, Metrics metrics):
         return metrics.perceptual_error_sang
 
+cdef class SinglePerceptualErrorExp(PriorityAlgorithm):
+    name = 'Perceptual Error Exp'
+    
+    cpdef combine(self, Metrics metrics):
+        return metrics.perceptual_error_exp
+
+cdef class SinglePerceptualErrorExpScale(PriorityAlgorithm):
+    name = 'Perceptual Error Exp * Scale'
+    
+    cpdef combine(self, Metrics metrics):
+        return metrics.perceptual_error_exp_scale
+
+cdef class SinglePerceptualErrorExpSAng(PriorityAlgorithm):
+    name = 'Perceptual Error Exp * SAng'
+    
+    cpdef combine(self, Metrics metrics):
+        return metrics.perceptual_error_exp_sang
+
 cdef class Random(PriorityAlgorithm):
     name = 'Random'
     
@@ -217,6 +235,7 @@ PRIORITY_ALGORITHMS = [Random,
                        SingleSolidAngle, SingleCameraAngle, SinglePerceptualError,
                        SingleCameraAngleExp,
                        SinglePerceptualErrorScale, SinglePerceptualErrorSAng,
+                       SinglePerceptualErrorExp,SinglePerceptualErrorExpScale,SinglePerceptualErrorExpSAng,
                        SingleFuture2SolidAngle, SingleFuture2CameraAngle,
                        SingleFuture5SolidAngle, SingleFuture5CameraAngle,
                        SingleDistance, SingleScale,
@@ -248,6 +267,9 @@ cdef class Metrics:
     cdef public double perceptual_error
     cdef public double perceptual_error_scale
     cdef public double perceptual_error_sang
+    cdef public double perceptual_error_exp
+    cdef public double perceptual_error_exp_scale
+    cdef public double perceptual_error_exp_sang
     cdef public double distance
     cdef public double scale
     
@@ -262,6 +284,9 @@ cdef class Metrics:
         self.perceptual_error = 0
         self.perceptual_error_scale = 0
         self.perceptual_error_sang = 0
+        self.perceptual_error_exp = 0
+        self.perceptual_error_exp_scale = 0
+        self.perceptual_error_exp_sang = 0
         self.distance = 0
         self.scale = 0
     
@@ -333,6 +358,7 @@ def calc_priority(pandastate, tasks):
         if model.slug in task_modelslugs:
             np_metrics[np] = Metrics()
             np_metrics[np].perceptual_error = perceptual_errs[t]
+            np_metrics[np].perceptual_error_exp = pow(np_metrics[np].perceptual_error, 20)
     
     # needed for solid angle
     cdef NodePath* camera_np = <NodePath*>get_ptr(pandastate.camera)
@@ -387,6 +413,8 @@ def calc_priority(pandastate, tasks):
         # multiply perceptual error by scale and solid angle
         metrics.perceptual_error_scale = metrics.perceptual_error * metrics.scale
         metrics.perceptual_error_sang = metrics.perceptual_error * metrics.solid_angle
+        metrics.perceptual_error_exp_scale = metrics.perceptual_error_exp * metrics.scale
+        metrics.perceptual_error_exp_sang = metrics.perceptual_error_exp * metrics.solid_angle
         
         obj_bounds = <BoundingSphere*>get_ptr(pandastate.obj_bounds[np])
         
