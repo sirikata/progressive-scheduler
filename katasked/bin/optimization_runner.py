@@ -75,6 +75,7 @@ def main():
                         help='Scene file to render.')
     parser.add_argument('--cdn-domain', metavar='example.com')
     parser.add_argument('--num-trials', type=int, default=3, help='Number of trials per experiment')
+    parser.add_argument('--algo', type=str, choices=('BFGS', 'Annealing'), required=True, help='Optimization algorithm to use')
     
     args = parser.parse_args()
     
@@ -249,7 +250,16 @@ def main():
             print '==> Iteration %i result %.7g' % (iteration_num, iteration_data['mean'])
             return iteration_data['mean']
     
-    res = scipy.optimize.fmin_bfgs(iteration, INITIAL_GUESS.values(), epsilon=EPSILON)
+    if args.algo == 'BFGS':
+        res = scipy.optimize.fmin_bfgs(iteration, INITIAL_GUESS.values(), epsilon=EPSILON)
+    elif args.algo == 'Annealing':
+        # to make simulated annealing reproducible
+        numpy.random.seed(472165)
+        
+        res = scipy.optimize.anneal(iteration, INITIAL_GUESS.values())
+    else:
+        raise Exception("unknown algo")
+        
     print 'answer', res.x
 
 if __name__ == '__main__':
