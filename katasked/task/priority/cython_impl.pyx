@@ -145,37 +145,37 @@ cdef class SingleScale(PriorityAlgorithm):
         return metrics.scale
 
 cdef class SinglePerceptualError(PriorityAlgorithm):
-    name = 'Perceptual Error'
+    name = 'Perceptual Err'
     
     cpdef combine(self, Metrics metrics):
         return metrics.perceptual_error
 
 cdef class SinglePerceptualErrorScale(PriorityAlgorithm):
-    name = 'Perceptual Error * Scale'
+    name = 'Perceptual Err * Scale'
     
     cpdef combine(self, Metrics metrics):
         return metrics.perceptual_error_scale
 
 cdef class SinglePerceptualErrorSAng(PriorityAlgorithm):
-    name = 'Perceptual Error * SAng'
+    name = 'Perceptual Err * SAng'
     
     cpdef combine(self, Metrics metrics):
         return metrics.perceptual_error_sang
 
 cdef class SinglePerceptualErrorExp(PriorityAlgorithm):
-    name = 'Perceptual Error Exp'
+    name = 'Perceptual Err Exp'
     
     cpdef combine(self, Metrics metrics):
         return metrics.perceptual_error_exp
 
 cdef class SinglePerceptualErrorExpScale(PriorityAlgorithm):
-    name = 'Perceptual Error Exp * Scale'
+    name = 'Perceptual Err Exp * Scale'
     
     cpdef combine(self, Metrics metrics):
         return metrics.perceptual_error_exp_scale
 
 cdef class SinglePerceptualErrorExpSAng(PriorityAlgorithm):
-    name = 'Perceptual Error Exp * SAng'
+    name = 'Perceptual Err Exp * SAng'
     
     cpdef combine(self, Metrics metrics):
         return metrics.perceptual_error_exp_sang
@@ -197,7 +197,7 @@ cdef class HandTuned1(PriorityAlgorithm):
                 metrics.distance * 50
 
 cdef class HandTuned2(PriorityAlgorithm):
-    name = 'Hand Tuned Multiply'
+    name = 'Multiply'
     
     cpdef combine(self, Metrics metrics):
         return metrics.solid_angle * \
@@ -212,6 +212,15 @@ cdef class HandTuned2(PriorityAlgorithm):
                 metrics.perceptual_error_sang * \
                 metrics.scale * \
                 metrics.distance
+
+cdef class OptimizationResult(PriorityAlgorithm):
+    name = 'OptimizationResult'
+    
+    cpdef combine(self, Metrics metrics):
+        return 1.00 * metrics.solid_angle + \
+               69.29 * metrics.distance + \
+               91.27 * metrics.scale + \
+               -43.81 * metrics.camera_angle_exp
 
 cdef class FromFile(PriorityAlgorithm):
     cdef public dict w
@@ -254,6 +263,7 @@ PRIORITY_ALGORITHMS = [Random,
                        SingleFuture5SolidAngle, SingleFuture5CameraAngle,
                        SingleDistance, SingleScale,
                        FromFile,
+                       OptimizationResult,
                        HandTuned1, HandTuned2]
 
 PRIORITY_ALGORITHM_NAMES = dict((a.__name__, a) for a in PRIORITY_ALGORITHMS)
