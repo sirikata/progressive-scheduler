@@ -218,9 +218,9 @@ cdef class OptimizationResult(PriorityAlgorithm):
     
     cpdef combine(self, Metrics metrics):
         return 1.00 * metrics.solid_angle + \
-               69.29 * metrics.distance + \
-               91.27 * metrics.scale + \
-               -43.81 * metrics.camera_angle_exp
+               75.32 * metrics.distance + \
+               33.13 * metrics.scale + \
+               -35.59 * metrics.camera_angle_exp
 
 cdef class FromFile(PriorityAlgorithm):
     cdef public dict w
