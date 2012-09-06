@@ -201,15 +201,15 @@ cdef class HandTuned2(PriorityAlgorithm):
     
     cpdef combine(self, Metrics metrics):
         return metrics.solid_angle * \
-                metrics.future_2_solid_angle * \
-                metrics.future_5_solid_angle * \
-                metrics.camera_angle * \
+                #metrics.future_2_solid_angle * \
+                #metrics.future_5_solid_angle * \
+                #metrics.camera_angle * \
                 metrics.camera_angle_exp * \
-                metrics.future_2_camera_angle * \
-                metrics.future_5_camera_angle * \
-                metrics.perceptual_error * \
-                metrics.perceptual_error_scale * \
-                metrics.perceptual_error_sang * \
+                #metrics.future_2_camera_angle * \
+                #metrics.future_5_camera_angle * \
+                #metrics.perceptual_error * \
+                #metrics.perceptual_error_scale * \
+                #metrics.perceptual_error_sang * \
                 metrics.scale * \
                 metrics.distance
 
