@@ -104,23 +104,36 @@ def main():
         print '%s    %s %%' % (name.rjust(20), ('%0.1f' % ((mean / (1024 * 768)) * 100)).rjust(4))
     
     
-    individial_wanted = set(['SingleDistance',
-                         'SingleSolidAngle',
+    individual_wanted = ['Random',
+                         'SingleCameraAngleExp',
                          'SingleScale',
-                         'Random',
-                         'SingleCameraAngleExp'])
+                         'OptimizationResult',
+                         'SingleSolidAngle',
+                         'SingleDistance'
+                         ]
+    
+    H = [
+     '#222222',
+     '#E41A1C',
+     '#377EB8',
+     '#4DAF4A',
+     '#984EA3',
+     '#FF7F00',
+     ]
+    rc('font', size='8')
+    rc('font', family='serif')
     for capname in capdirs:
-        fig = plt.figure(figsize=(11.5, 8))
+        fig = plt.figure(figsize=(4,2))
         ax1 = fig.add_subplot(111)
         
-        colors = iter(['b', 'r', 'g', 'k', 'y'])
-        markers = iter(['s', 'p', 'o', 'v', '^'])
+        colors = iter(H)
+        markers = iter(['s', 'p', 'o', 'v', '^', 'h'])
         
         legend_lines = []
         legend_names = []
-        for algo_priority_name, motionpath_data in algo_rawdata.iteritems():
-            if algo_priority_name not in individial_wanted:
-                continue
+        for algo_priority_name in individual_wanted:
+            
+            motionpath_data = algo_rawdata[algo_priority_name]
             
             legend_names.append(algo_priority_name)
             algo_trials = motionpath_data[capname]
@@ -128,19 +141,34 @@ def main():
             marker = next(markers)
             for i, trial in enumerate(algo_trials):
                 errvals = (numpy.array(trial['errvals'], dtype=float) / (1024 * 768)) * 100
-                res = ax1.plot(trial['times'], errvals, color=color, marker=marker)
+                res = ax1.plot(trial['times'], errvals, color=color, marker=marker, markersize=2, linewidth=0.5, markeredgewidth=0.2)
                 if i == 0:
                     legend_lines.append(res)
+                    break
         
-        prop = FontProperties(size=12)
-        l1, l2, l3, l4, l5 = legend_lines
-        plt.legend(l1+l2+l3+l4+l5, legend_names, loc=2, prop=prop, ncol=5, frameon=False, columnspacing=1)
-        plt.title('Error Over Time (%s)' % capname[8:-5])
+        prop = FontProperties(size=5)
+        l1, l2, l3, l4, l5, l6 = legend_lines
+        leg = plt.legend(l1+l2+l3+l4+l5+l6, legend_names, loc='upper right', prop=prop, ncol=4, frameon=False, columnspacing=0.5)
+        
+        # swap_and_right_align_legend
+        for vp in leg._legend_box._children[-1]._children:
+            for c in vp._children:
+                c._children.reverse()
+            vp.align = "right"
+        
+        dangling1 = leg._legend_box._children[-1]._children[0]._children.pop(0)
+        dangling2 = leg._legend_box._children[-1]._children[1]._children.pop(0)
+        leg._legend_box._children[-1]._children[2]._children.append(dangling1)
+        leg._legend_box._children[-1]._children[3]._children.append(dangling2)
+        
+        #plt.title('Error Over Time (%s)' % capname[8:-5])
         plt.xlabel('Time (s)')
-        plt.ylabel('Perceptual Error (percentage of screen size)')
+        plt.ylabel('Perceptual Error (\% screen size)')
         plt.yticks(range(0, 109, 10))
-        plt.ylim((0, 109))
-        plt.subplots_adjust(left=0.08, right=0.97, top=0.94, bottom=0.08)
+        plt.ylim((0, 113))
+        ax1.xaxis.set_ticks_position('bottom')
+        ax1.yaxis.set_ticks_position('left')
+        plt.subplots_adjust(left=0.12, right=0.97, top=0.95, bottom=0.15)
         plt.savefig(os.path.join(graphdir, 'rawcaps-' + capname + '.pdf'))
     
     positions = numpy.arange(len(algo_results)) + 0.2
@@ -150,17 +178,19 @@ def main():
         names.append(name)
         percentages.append((mean / (1024 * 768)) * 100)
     
-    fig = plt.figure(figsize=(4, 2))
+    fig = plt.figure(figsize=(4, 2.5))
     ax1 = fig.add_subplot(111)
     
     H = ['#FBB4AE',
-         '#B3CDE3',
-         '#CCEBC5',
-         '#DECBE4',
-         '#FED9A6']
-    H1, H2, H3, H4, H5 = H
+     '#B3CDE3',
+     '#CCEBC5',
+     '#DECBE4',
+     '#FED9A6',
+     '#ff0000']
+    H1, H2, H3, H4, H5, H6 = H
     W = '#ffffff'
-    colors = [H1, H2, H1, H3, H2, H4, H2, H2, H3, H3, H3, W, H1, H1, H3, H3, H3]
+    colors = [H1, H5, H1, H3, H2, W, H5, H3, H3, H3, W, H1, H1, H3, H3, H3]
+    colors = [H1, W, H2, H3, W, H1, H3, H2, H2, H2, W, H1, H2, H1, H2, H2]
     
     rc('font', size='10')
     rc('font', family='serif')
@@ -172,24 +202,27 @@ def main():
         maxheight = max(rect.get_height() for rect in rects)
         for i, (rect, label) in enumerate(zip(rects, labels)):
             height = rect.get_height()
-            yloc = height + maxheight * 0.05
-            if i > 8:
-                yloc = 1.5
+            yloc = height + maxheight * 0.03
+            if i > 7:
+                yloc = 1
             plt.text(rect.get_x() + rect.get_width() / 2.0, yloc, label,
                     ha='center', va='bottom', rotation=90, fontproperties=textprop2)
-            plt.text(rect.get_x() + rect.get_width() / 2.0, height - maxheight * 0.07, '%0.1f' % rect.get_height(),
+            plt.text(rect.get_x() + rect.get_width() / 2.0, height - maxheight * 0.04, '%0.1f' % rect.get_height(),
                     ha='center', va='bottom', clip_on=True, fontproperties=textprop1)
     
     autolabel(rects, names)
     
-    ax1.get_xaxis().set_visible(False)
+    #ax1.get_xaxis().set_visible(False)
     ax1.yaxis.set_ticks_position('left')
     plt.yticks(range(0, 101, 10))
+    plt.xticks(positions+0.4, [chr(i+65) for i in range(len(positions))])
+    for t in ax1.xaxis.get_ticklines():
+        t.set_visible(False)
     plt.ylabel('Mean Perceptual Error')
     plt.xlim((0, max(positions)+rects[0].get_width()+0.2))
-    plt.ylim((0, 100))
+    plt.ylim((0, max(percentages)+1))
     #plt.title('Perceptual Error by Priority Algorithm')
-    plt.subplots_adjust(left=0.15, right=0.98, top=0.97, bottom=0.03)
+    plt.subplots_adjust(left=0.14, right=0.98, top=0.97, bottom=0.11)
     plt.savefig(os.path.join(graphdir, 'algo-percentages-bar.pdf'))
     
     
