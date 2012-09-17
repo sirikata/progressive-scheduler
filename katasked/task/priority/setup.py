@@ -1,4 +1,5 @@
 import sys
+import os
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
@@ -13,7 +14,10 @@ if sys.platform == 'win32':
     args['extra_compile_args'] = ['/EHsc']
     args['libraries'] = ['libpanda']
 elif sys.platform == 'darwin':
+    os.environ['ARCHFLAGS'] = "-arch i386"
+    args['library_dirs'] = [r'/Developer/Panda3D/lib']
     args['include_dirs'] = ['/Developer/Panda3D/include/']
+    args['libraries'] = ['panda', 'p3direct']
 elif sys.platform == 'linux2':
     args['library_dirs'] = [r'/usr/lib/panda3d', r'/usr/lib64/panda3d']
     args['include_dirs'] = ['/usr/include/panda3d/']
